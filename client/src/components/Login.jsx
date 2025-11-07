@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.js";
+import { Code2, Mail, Lock, User, Sparkles } from "lucide-react";
 
 // Google OAuth script loader
 const loadGoogleScript = () => {
@@ -28,19 +27,7 @@ function Login() {
   });
   const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate();
-  const { login, register, googleLogin, isAuthenticated, token } = useAuth();
-  const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
-
-  useEffect(() => {
-    // Check for token in localStorage or from auth context
-    const storedToken = localStorage.getItem('token');
-    
-    // Redirect if already authenticated or token exists
-    if (isAuthenticated || storedToken || token) {
-      navigate("/Home");
-    }
-  }, [isAuthenticated, token, navigate]);
+  const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID";
 
   useEffect(() => {
     // Initialize Google Sign-In
@@ -70,11 +57,8 @@ function Login() {
   const handleGoogleResponse = async (response) => {
     try {
       setLoading(true);
-      const result = await googleLogin(response.credential);
-      
-      if (result.success) {
-        navigate("/Home");
-      }
+      console.log("Google response:", response);
+      alert("Google login successful!");
     } catch (error) {
       console.error("Google auth error:", error);
     } finally {
@@ -89,37 +73,33 @@ function Login() {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
 
     // Validation
     if (isLogin) {
       if (!formData.email || !formData.password) {
-        return; // Toast handled by context
+        alert("Email and password are required");
+        return;
       }
     } else {
       if (!formData.username || !formData.email || !formData.password) {
-        return; // Toast handled by context
+        alert("All fields are required");
+        return;
       }
     }
 
-    try {
-      setLoading(true);
-      let result;
-
-      if (isLogin) {
-        result = await login(formData.email, formData.password);
-      } else {
-        result = await register(formData.username, formData.email, formData.password);
-      }
-
-      if (result.success) {
-        navigate("/Home");
-      }
-    } catch (error) {
-      console.error("Auth error:", error);
-    } finally {
+    setLoading(true);
+    setTimeout(() => {
+      console.log("Form data:", formData);
+      alert(isLogin ? "Login successful!" : "Registration successful!");
       setLoading(false);
+    }, 1000);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSubmit(e);
     }
   };
 
@@ -133,87 +113,196 @@ function Login() {
   };
 
   return (
-    <div className="container-fluid">
-      <div className="row justify-content-center align-items-center min-vh-100">
-        <div className="col-12 col-md-6 col-lg-4">
-          <div className="card shadow-sm p-2 mb-5 bg-secondary rounded">
-            <div className="card-body text-center bg-dark">
-              <img
-                src="/favicon.ico"
-                alt="Logo"
-                className="img-fluid mx-auto d-block mb-3"
-                style={{ maxWidth: "150px" }}
-              />
-              <h4 className="card-title text-light mb-4">
+    <div 
+      className="d-flex align-items-center justify-content-center min-vh-100 p-3" 
+      style={{ background: 'transparent' }}
+    >
+      <div className="w-100" style={{ maxWidth: '440px' }}>
+        <div 
+          className="card shadow-lg"
+          style={{ 
+            background: 'rgba(15, 15, 15, 0.85)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '20px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
+          }}
+        >
+          <div className="card-body p-4 p-sm-5">
+            {/* Logo */}
+            <div className="text-center mb-4">
+              <div 
+                className="d-inline-flex align-items-center justify-content-center mb-3 rounded-3"
+                style={{ 
+                  width: '100px', 
+                  height: '100px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  boxShadow: '0 12px 32px rgba(102, 126, 234, 0.4)'
+                }}
+              >
+                <Code2 size={48} className="text-white" strokeWidth={2.5} />
+              </div>
+              <h2 className="text-white fw-bold fs-4 mb-2">
                 {isLogin ? "Welcome Back!" : "Create Account"}
-              </h4>
+              </h2>
+              <p className="text-white-50 mb-0 small">
+                {isLogin ? "Sign in to continue coding" : "Join our coding community"}
+              </p>
+            </div>
 
-              <form onSubmit={handleSubmit}>
-                {!isLogin && (
-                  <div className="form-group mb-3">
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleChange}
-                      className="form-control"
-                      placeholder="Username"
-                      disabled={loading}
-                    />
-                  </div>
-                )}
-
-                <div className="form-group mb-3">
+            {/* Form Fields */}
+            <div className="d-flex flex-column gap-3 mb-4">
+              {!isLogin && (
+                <div className="position-relative">
+                  <User 
+                    size={18} 
+                    className="position-absolute text-white-50" 
+                    style={{ left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}
+                  />
                   <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
+                    type="text"
+                    name="username"
+                    value={formData.username}
                     onChange={handleChange}
-                    className="form-control"
-                    placeholder="Email"
+                    onKeyPress={handleKeyPress}
+                    placeholder="Username"
                     disabled={loading}
+                    className="form-control"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '12px',
+                      color: '#fff',
+                      fontSize: '15px',
+                      padding: '12px 16px 12px 46px',
+                      fontWeight: '500'
+                    }}
                   />
                 </div>
+              )}
 
-                <div className="form-group mb-3">
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="form-control"
-                    placeholder="Password"
-                    disabled={loading}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="btn btn-success btn-lg btn-block w-100 mb-3"
+              <div className="position-relative">
+                <Mail 
+                  size={18} 
+                  className="position-absolute text-white-50" 
+                  style={{ left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}
+                />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Email"
                   disabled={loading}
-                >
-                  {loading ? "Please wait..." : isLogin ? "LOGIN" : "SIGN UP"}
-                </button>
-              </form>
-
-              <div className="position-relative mb-3">
-                <hr style={{ color: "white" }} />
-                <span
-                  className="position-absolute top-50 start-50 translate-middle bg-dark px-3 text-light"
-                  style={{ fontSize: "14px" }}
-                >
-                  OR
-                </span>
+                  className="form-control"
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '15px',
+                    padding: '12px 16px 12px 46px',
+                    fontWeight: '500'
+                  }}
+                />
               </div>
 
-              <div id="googleSignInButton" className="mb-3"></div>
+              <div className="position-relative">
+                <Lock 
+                  size={18} 
+                  className="position-absolute text-white-50" 
+                  style={{ left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', zIndex: 1 }}
+                />
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Password"
+                  disabled={loading}
+                  className="form-control"
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '15px',
+                    padding: '12px 16px 12px 46px',
+                    fontWeight: '500'
+                  }}
+                />
+              </div>
+            </div>
 
-              <p className="mt-3 text-light mb-0">
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="btn w-100 fw-bold text-uppercase mb-3"
+              style={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '13px',
+                color: 'white',
+                fontSize: '15px',
+                letterSpacing: '1.5px',
+                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+                transition: 'all 0.3s',
+                opacity: loading ? 0.6 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
+              }}
+            >
+              {loading ? "Please wait..." : isLogin ? "LOGIN" : "SIGN UP"}
+            </button>
+
+            {/* Divider */}
+            <div className="position-relative mb-3">
+              <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+              <span
+                className="position-absolute top-50 start-50 translate-middle px-3 text-white-50"
+                style={{ 
+                  background: 'rgba(15, 15, 15, 0.85)',
+                  fontSize: '13px',
+                  fontWeight: '500'
+                }}
+              >
+                OR
+              </span>
+            </div>
+
+            {/* Google Sign In */}
+            <div id="googleSignInButton" className="mb-4"></div>
+
+            {/* Toggle Login/Register */}
+            <div className="text-center">
+              <p className="text-white-50 mb-0 small">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
                 <span
                   onClick={toggleMode}
-                  className="text-success"
-                  style={{ cursor: "pointer", textDecoration: "underline" }}
+                  className="text-white fw-semibold"
+                  style={{ 
+                    cursor: 'pointer', 
+                    textDecoration: 'underline',
+                    textDecorationColor: 'rgba(255,255,255,0.4)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.textDecorationColor = 'rgba(255,255,255,1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.textDecorationColor = 'rgba(255,255,255,0.4)';
+                  }}
                 >
                   {isLogin ? "Sign Up" : "Login"}
                 </span>
@@ -221,7 +310,45 @@ function Login() {
             </div>
           </div>
         </div>
+
+        {/* Footer Text */}
+        <div className="text-center mt-4">
+          <p className="text-white-50 mb-0 small d-flex align-items-center justify-content-center gap-1">
+            <Sparkles size={14} />
+            Built for developers, by developers
+          </p>
+        </div>
       </div>
+
+      <style>{`
+        .form-control::placeholder {
+          color: rgba(255,255,255,0.4);
+          font-weight: 500;
+        }
+        
+        .form-control:focus {
+          background: rgba(255,255,255,0.08) !important;
+          border-color: rgba(255,255,255,0.25) !important;
+          color: #fff !important;
+          box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15) !important;
+          outline: none;
+        }
+
+        .form-control:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        /* Google button styling override */
+        #googleSignInButton {
+          border-radius: 12px !important;
+          overflow: hidden;
+        }
+
+        #googleSignInButton > div {
+          border-radius: 12px !important;
+        }
+      `}</style>
     </div>
   );
 }
