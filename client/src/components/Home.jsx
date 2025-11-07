@@ -288,7 +288,7 @@ function Home() {
 
           {/* Center Content */}
           <div className="d-flex align-items-center justify-content-center min-vh-100 p-3 p-sm-4">
-            <div className="w-100" style={{ maxWidth: '540px' }}>
+            <div className="w-100" style={{ maxWidth: '500px' }}>
               <div 
                 className="card shadow-lg"
                 style={{ 
@@ -299,31 +299,31 @@ function Home() {
                   boxShadow: '0 20px 60px rgba(0,0,0,0.6)'
                 }}
               >
-                <div className="card-body p-4 p-sm-5">
+                <div className="card-body p-3 p-sm-4">
                   {/* Logo */}
-                  <div className="text-center mb-4">
+                  <div className="text-center mb-3">
                     <div 
-                      className="d-inline-flex align-items-center justify-content-center mb-4 rounded-3"
+                      className="d-inline-flex align-items-center justify-content-center mb-3 rounded-3"
                       style={{ 
-                        width: '140px', 
-                        height: '140px',
+                        width: '80px', 
+                        height: '80px',
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         boxShadow: '0 12px 32px rgba(102, 126, 234, 0.4)'
                       }}
                     >
-                      <Code2 size={64} className="text-white" strokeWidth={2.5} />
+                      <Code2 size={42} className="text-white" strokeWidth={2.5} />
                     </div>
-                    <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '0 0 24px 0' }} />
-                    <h2 className="text-white fw-bold fs-3 mb-2">
+                    <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '0 0 16px 0' }} />
+                    <h2 className="text-white fw-bold fs-4 mb-1">
                       Enter the Room ID
                     </h2>
-                    <p className="text-white-50 mb-0 small">
+                    <p className="text-white-50 mb-0" style={{ fontSize: '13px' }}>
                       Join or create a collaborative coding session
                     </p>
                   </div>
 
                   {/* Form */}
-                  <div className="d-flex flex-column gap-4 mb-4">
+                  <div className="d-flex flex-column gap-3 mb-3">
                     <input
                       type="text"
                       value={roomId}
@@ -336,8 +336,8 @@ function Home() {
                         border: '1px solid rgba(255,255,255,0.15)',
                         borderRadius: '12px',
                         color: '#fff',
-                        fontSize: '15px',
-                        padding: '14px 18px',
+                        fontSize: '14px',
+                        padding: '12px 16px',
                         fontWeight: '500',
                         letterSpacing: '0.5px'
                       }}
@@ -355,15 +355,15 @@ function Home() {
                         border: '1px solid rgba(255,255,255,0.15)',
                         borderRadius: '12px',
                         color: '#fff',
-                        fontSize: '15px',
-                        padding: '14px 18px',
+                        fontSize: '14px',
+                        padding: '12px 16px',
                         fontWeight: '500',
                         letterSpacing: '0.5px'
                       }}
                     />
                   </div>
 
-                  <div className="d-flex flex-column gap-3">
+                  <div className="d-flex flex-column gap-2">
                     <button
                       onClick={joinRoom}
                       className="btn w-100 fw-bold text-uppercase d-flex align-items-center justify-content-center gap-2"
@@ -371,9 +371,9 @@ function Home() {
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         border: 'none',
                         borderRadius: '12px',
-                        padding: '14px',
+                        padding: '12px',
                         color: 'white',
-                        fontSize: '16px',
+                        fontSize: '15px',
                         letterSpacing: '1.5px',
                         boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
                         transition: 'all 0.3s'
@@ -387,12 +387,12 @@ function Home() {
                         e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
                       }}
                     >
-                      <Users size={20} />
+                      <Users size={18} />
                       Join Room
                     </button>
 
-                    <div className="text-center mt-2">
-                      <p className="text-white-50 mb-2 small">
+                    <div className="text-center mt-1">
+                      <p className="text-white-50 mb-2" style={{ fontSize: '13px' }}>
                         Don't have a room ID?
                       </p>
                       <button
@@ -403,9 +403,9 @@ function Home() {
                           border: '1px solid rgba(255,255,255,0.15)',
                           color: 'white',
                           borderRadius: '10px',
-                          padding: '10px 20px',
+                          padding: '8px 18px',
                           fontWeight: '500',
-                          fontSize: '14px'
+                          fontSize: '13px'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
@@ -416,7 +416,7 @@ function Home() {
                           e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
                         }}
                       >
-                        <Sparkles size={18} />
+                        <Sparkles size={16} />
                         Create New Room
                       </button>
                     </div>
