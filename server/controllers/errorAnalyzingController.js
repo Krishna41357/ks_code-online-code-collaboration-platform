@@ -18,7 +18,7 @@ export const errorAnalyzingController = async(req , res) =>{
             });
         }
         const analysis = await groq.chat.completions.create({
-            model:"gpt-4-groq",
+            model:"llama-3.3-70b-versatile",
             messages:[
                 {
                 role:"system",
