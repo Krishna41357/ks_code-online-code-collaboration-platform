@@ -19,48 +19,57 @@ export const errorAnalyzingController = async(req , res) =>{
         }
         const analysis = await groq.chat.completions.create({
   model: "llama-3.3-70b-versatile",
-  n: 2, // 👈 important
   messages: [
     {
       role: "system",
       content: `
 You are a competitive programming assistant.
+Explain the error briefly.
+Then provide the full corrected code.
+Respond in this format:
 
-Rules:
-- Be concise.
-- Focus only on the real cause of the error.
-- Do not over-explain.
+EXPLANATION:
+<short explanation>
+
+CORRECTED_CODE:
+<full corrected code>
 `
     },
     {
       role: "user",
       content: `
-Language: ${language || "unknown"}
+Language: ${language}
 Error:
 ${error}
 
 Code:
 ${code}
-
-Task:
-1. Explain the error briefly.
-2. Provide the fully corrected code.
 `
     }
   ],
-  temperature: 0.3,
+  temperature: 0.2
 });
+
 
 // Parse the JSON returned by the model
-const Explanation = analysis.choices[0].message.content.trim();
-const correctedCode = analysis.choices[1].message.content.trim();
+const content = analysis.choices[0].message.content;
 
-return res.status(200).json({
-    success: true,
-    Explanation,
-    correctedCode
+let explanation = "";
+let correctedCode = "";
+
+if (content.includes("CORRECTED_CODE:")) {
+  const parts = content.split("CORRECTED_CODE:");
+  explanation = parts[0].replace("EXPLANATION:", "").trim();
+  correctedCode = parts[1].trim();
+} else {
+  explanation = content;
+}
+
+return res.json({
+  success: true,
+  explanation,
+  correctedCode
 });
-
     } catch(err){
         console.error("AI Error Analyzer:", err);
         return res.status(500).json({

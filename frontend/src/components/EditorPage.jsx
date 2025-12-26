@@ -197,28 +197,35 @@ function EditorPage() {
     }
   };
   const errorAnalysis = async () => {
-    if (errorOutput === 0) {
-      toast.error("No error to analyze");
-      return;
-    }
-    setIsCompiling(true);
-   
-    try{
-      const {data} = await axios.post(`${API_URL}/errorAnalyze/analyze-error` , {
-        error:output,
-        code:codeRef.current,
-        language:selectedLanguage
-      });
-      setOutput(data.explanation);          // for explanation UI
-    setCorrectedCode(data.correctedCode); // for "Apply Fix" button
-      setErrorOutput(0);
-    } catch(err){
-      alert("AI is down for a while try again later");
-      setOutput("Cannot analyze error")
-    }finally{
-      setIsCompiling(false);
-    }
-  };
+  if (!errorOutput) {
+    toast.error("No error to analyze");
+    return;
+  }
+
+  setIsCompiling(true);
+  setCorrectedCode(""); // reset previous fix
+
+  try {
+    const { data } = await axios.post(
+      `${API_URL}/errorAnalyze/analyze-error`,
+      {
+        error: output,
+        code: codeRef.current,
+        language: selectedLanguage,
+      }
+    );
+
+    setOutput(data.explanation);          // Explanation UI
+    setCorrectedCode(data.correctedCode); // Apply Fix button
+    setErrorOutput(0);
+  } catch (err) {
+    toast.error("AI analysis failed. Try again later.");
+    setOutput("Unable to analyze the error at the moment.");
+  } finally {
+    setIsCompiling(false);
+  }
+};
+
 
   const toggleCompileWindow = () => {
     setIsCompileWindowOpen(!isCompileWindowOpen);
@@ -516,40 +523,44 @@ function EditorPage() {
                 </h6>
                 <div className="d-flex gap-2">
                     {correctedCode && (
-      <button
-      className="btn btn-sm d-flex align-items-center gap-2"
-      onClick={() => {
-        codeRef.current = correctedCode;
-        toast.success("Fix applied to editor");
-      }}
-      style={{
-        background: 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)',
-        border: 'none',
-        borderRadius: '8px',
-        padding: '6px 14px',
-        color: 'white',
-        fontWeight: '500'
-      }}
-    >
-      ✨ Apply Fix
-    </button>
-  )}
+  <button
+    className="btn btn-sm d-flex align-items-center gap-2"
+    disabled={isCompiling}
+    onClick={() => {
+      codeRef.current = correctedCode;
+      toast.success("Fix applied to editor");
+    }}
+    style={{
+      background: "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",
+      border: "none",
+      borderRadius: "8px",
+      padding: "6px 14px",
+      color: "white",
+      fontWeight: "500",
+    }}
+  >
+    ✨ Apply Fix
+  </button>
+)}
+
                   <button
-                    className="btn btn-sm d-flex align-items-center gap-2"
-                    onClick={errorAnalysis}
-                    disabled={isCompiling}
-                    style={{
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '6px 14px',
-                      color: 'white',
-                      fontWeight: '500'
-                    }}
-                  >
-                    <Sparkle size={14} />
-                    Understand Error 
-                  </button>
+  className="btn btn-sm d-flex align-items-center gap-2"
+  onClick={errorAnalysis}
+  disabled={isCompiling}
+  style={{
+    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    border: "none",
+    borderRadius: "8px",
+    padding: "6px 14px",
+    color: "white",
+    fontWeight: "500",
+    opacity: isCompiling ? 0.7 : 1,
+  }}
+>
+  <Sparkle size={14} />
+  {isCompiling ? "Analyzing..." : "Understand Error"}
+</button>
+
                   <button
                     className="btn btn-sm d-flex align-items-center gap-2"
                     onClick={runCode}
