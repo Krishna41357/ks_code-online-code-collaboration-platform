@@ -51,6 +51,7 @@ function EditorPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [AiOutput, setAiOutput] = useState("");
   const[errorOutput,setErrorOutput]=useState(0);
+  const API_URL = import.meta.env.VITE_API_URL
 
   const codeRef = useRef(null);
   const videoRef = useRef(null);
@@ -202,7 +203,7 @@ function EditorPage() {
     setIsCompiling(true);
    
     try{
-      const {data} = await axios.post(`${API_URL}/api/errorAnalysis` , {
+      const {data} = await axios.post(`${API_URL}/errorAnalysis/analyze-error` , {
         error:output,
         code:codeRef.current,
         language:selectedLanguage
