@@ -48,7 +48,7 @@ ${code}
 let Explanation = "", correctedCode = "";
 try {
     const parsed = JSON.parse(analysis.choices[0].message.content);
-    Explanation = parsed.explanation || "";
+    Explanation = parsed.Explanation || "";
     correctedCode = parsed.correctedCode || "";
 } catch (e) {
     // Fallback in case model output is not valid JSON
@@ -57,7 +57,7 @@ try {
 
 return res.status(200).json({
     success: true,
-    explanation,
+    Explanation,
     correctedCode
 });
 
