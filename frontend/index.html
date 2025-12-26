@@ -19,7 +19,7 @@
     <title>ks_code</title>
   </head>
 
-  <body style="background: transparent; margin: 0; overflow: hidden;">
+  <body style="background: transparent; margin: 0; padding: 0;">
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
 
@@ -51,6 +51,8 @@
         renderer.domElement.style.top = "0";
         renderer.domElement.style.left = "0";
         renderer.domElement.style.zIndex = "-1";
+        renderer.domElement.style.width = "100%";
+        renderer.domElement.style.height = "100%";
         document.body.appendChild(renderer.domElement);
 
         starGeo = new THREE.Geometry();
