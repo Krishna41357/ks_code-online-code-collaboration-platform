@@ -24,8 +24,10 @@ import {
   X, 
   Menu,
   Trash2,
-  Code2
+  Code2,
+  Sparkle
 } from "lucide-react";
+
 
 const LANGUAGES = [
   { value: "py", label: "Python", icon: "🐍" },
@@ -47,6 +49,8 @@ function EditorPage() {
   const [isCompiling, setIsCompiling] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState("cpp");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [AiOutput, setAiOutput] = useState("");
+  const[errorOutput,setErrorOutput]=useState(0);
 
   const codeRef = useRef(null);
   const videoRef = useRef(null);
@@ -185,8 +189,31 @@ function EditorPage() {
         err?.response?.data?.error ||
         "Something went wrong";
       setOutput(errmsg);
+      setErrorOutput(1);
       setIsCompiling(false);
       toast.error("Compilation failed");
+    }
+  };
+  const errorAnalysis = async () => {
+    if (errorOutput === 0) {
+      toast.error("No error to analyze");
+      return;
+    }
+    setIsCompiling(true);
+   
+    try{
+      const {data} = await axios.post(`${API_URL}/api/errorAnalysis` , {
+        error:output,
+        code:codeRef.current,
+        language:selectedLanguage
+      });
+      setOutput(data.Explanation);
+      setErrorOutput(0);
+    } catch(err){
+      alert("AI is down for a while try again later");
+      setOutput("Cannot analyze error")
+    }finally{
+      setIsCompiling(false);
     }
   };
 
@@ -485,6 +512,22 @@ function EditorPage() {
                   </span>
                 </h6>
                 <div className="d-flex gap-2">
+                  <button
+                    className="btn btn-sm d-flex align-items-center gap-2"
+                    onClick={errorAnalysis}
+                    disabled={isCompiling}
+                    style={{
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '6px 14px',
+                      color: 'white',
+                      fontWeight: '500'
+                    }}
+                  >
+                    <Sparkle size={14} />
+                    Understand Error 
+                  </button>
                   <button
                     className="btn btn-sm d-flex align-items-center gap-2"
                     onClick={runCode}

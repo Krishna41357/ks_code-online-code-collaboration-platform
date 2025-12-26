@@ -1,24 +1,25 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const { OAuth2Client } = require('google-auth-library');
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Generate JWT Token
 const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'your_jwt_secret_key_change_this', {
-    expiresIn: '30d'
-  });
+  return jwt.sign(
+    { id: userId },
+    process.env.JWT_SECRET || 'your_jwt_secret_key_change_this',
+    { expiresIn: '30d' }
+  );
 };
 
 // @desc    Register new user
 // @route   POST /api/auth/register
 // @access  Public
-exports.register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // Validation
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -26,7 +27,6 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check if user exists
     const userExists = await User.findOne({ $or: [{ email }, { username }] });
     if (userExists) {
       return res.status(400).json({
@@ -35,14 +35,8 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create user
-    const user = await User.create({
-      username,
-      email,
-      password
-    });
+    const user = await User.create({ username, email, password });
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -70,11 +64,10 @@ exports.register = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -82,25 +75,16 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Check if user exists
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(200).json({
@@ -128,7 +112,7 @@ exports.login = async (req, res) => {
 // @desc    Google OAuth login
 // @route   POST /api/auth/google
 // @access  Public
-exports.googleAuth = async (req, res) => {
+export const googleAuth = async (req, res) => {
   try {
     const { credential } = req.body;
 
@@ -139,7 +123,6 @@ exports.googleAuth = async (req, res) => {
       });
     }
 
-    // Verify Google token
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
@@ -148,18 +131,15 @@ exports.googleAuth = async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email, name, picture } = payload;
 
-    // Check if user exists
     let user = await User.findOne({ $or: [{ googleId }, { email }] });
 
     if (user) {
-      // Update googleId if user exists with email but no googleId
       if (!user.googleId) {
         user.googleId = googleId;
         user.avatar = picture || user.avatar;
         await user.save();
       }
     } else {
-      // Create new user
       user = await User.create({
         username: name.replace(/\s+/g, '_').toLowerCase() + '_' + Date.now(),
         email,
@@ -168,7 +148,6 @@ exports.googleAuth = async (req, res) => {
       });
     }
 
-    // Generate token
     const token = generateToken(user._id);
 
     res.status(200).json({
@@ -196,7 +175,7 @@ exports.googleAuth = async (req, res) => {
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
-exports.getMe = async (req, res) => {
+export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
