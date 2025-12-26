@@ -19,7 +19,7 @@ export const errorAnalyzingController = async(req , res) =>{
         }
         const analysis = await groq.chat.completions.create({
             model:"llama3-70b-8192",
-            messages:[
+            message:[
                 {
                 role:"system",
                 content:"You are a competitive programming assistant. Explain errors clearly and suggest fixes.",
