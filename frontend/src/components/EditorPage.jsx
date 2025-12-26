@@ -209,7 +209,7 @@ function EditorPage() {
         code:codeRef.current,
         language:selectedLanguage
       });
-      setOutput(data.Explanation);          // for explanation UI
+      setOutput(data.explanation);          // for explanation UI
     setCorrectedCode(data.correctedCode); // for "Apply Fix" button
       setErrorOutput(0);
     } catch(err){
