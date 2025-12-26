@@ -1,0 +1,24 @@
+
+/* 1️⃣ Tailwind base styles (resets + defaults) */
+@tailwind base;
+
+/* 2️⃣ Tailwind component classes */
+@tailwind components;
+
+/* 3️⃣ Tailwind utility classes (all the "bg-red-500", "p-4", etc.) */
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #1c1e29;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
