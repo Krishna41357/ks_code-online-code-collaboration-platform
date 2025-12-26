@@ -27,6 +27,8 @@ import {
   Code2,
   Sparkle
 } from "lucide-react";
+import { Resizable } from "re-resizable";
+
 
 
 const LANGUAGES = [
@@ -495,136 +497,144 @@ function EditorPage() {
           </div>
 
           {/* Compiler Output Section - Fixed at bottom */}
-          <div
-            className={`text-light ${isCompileWindowOpen ? 'd-block' : 'd-none'}`}
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: isCompileWindowOpen ? "45vh" : "0",
-              maxHeight: '45vh',
-              transition: "height 0.3s ease-in-out",
-              zIndex: 1060,
-              background: '#0a0a0a',
-              borderTop: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 -8px 32px rgba(0,0,0,0.6)'
-            }}
-          >
-            <div className="h-100 d-flex flex-column p-4">
-              {/* Header */}
-              <div className="d-flex justify-content-between align-items-center mb-3 pb-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <h6 className="m-0 fw-semibold d-flex align-items-center gap-2">
-                  <Terminal size={20} />
-                  Output
-                  <span className="badge rounded-pill" style={{ background: 'rgba(255,255,255,0.15)', fontSize: '0.7rem', padding: '4px 12px' }}>
-                    {LANGUAGES.find(l => l.value === selectedLanguage)?.label}
-                  </span>
-                </h6>
-                <div className="d-flex gap-2">
-                    {correctedCode && (
-  <button
-    className="btn btn-sm d-flex align-items-center gap-2"
-    disabled={isCompiling}
-    onClick={() => {
-      codeRef.current = correctedCode;
-      toast.success("Fix applied to editor");
+         
+
+{isCompileWindowOpen && (
+  <Resizable
+    defaultSize={{
+      width: '100%',
+      height: '45vh',
+    }}
+    minHeight="20vh"
+    maxHeight="80vh"
+    enable={{
+      top: true,
+      right: false,
+      left: false,
+      bottom: false,
+    }}
+    handleStyles={{
+      top: {
+        height: '6px',
+        cursor: 'row-resize',
+        background: 'rgba(255,255,255,0.15)',
+      },
     }}
     style={{
-      background: "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",
-      border: "none",
-      borderRadius: "8px",
-      padding: "6px 14px",
-      color: "white",
-      fontWeight: "500",
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1060,
+      background: '#0a0a0a',
+      borderTop: '1px solid rgba(255,255,255,0.1)',
+      boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
     }}
   >
-    ✨ Apply Fix
-  </button>
+    <div className="h-100 d-flex flex-column p-4">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-3 pb-3"
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <h6 className="m-0 fw-semibold d-flex align-items-center gap-2">
+          <Terminal size={20} />
+          Output
+          <span className="badge rounded-pill"
+            style={{ background: 'rgba(255,255,255,0.15)', fontSize: '0.7rem', padding: '4px 12px' }}>
+            {LANGUAGES.find(l => l.value === selectedLanguage)?.label}
+          </span>
+        </h6>
+        <div className="d-flex gap-2">
+          {correctedCode && (
+            <button className="btn btn-sm d-flex align-items-center gap-2"
+              disabled={isCompiling}
+              onClick={() => {
+                codeRef.current = correctedCode;
+                toast.success('Fix applied to editor');
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                color: 'white',
+                fontWeight: '500',
+              }}>
+              ✨ Apply Fix
+            </button>
+          )}
+          <button className="btn btn-sm d-flex align-items-center gap-2"
+            onClick={errorAnalysis}
+            disabled={isCompiling}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 14px',
+              color: 'white',
+              fontWeight: '500',
+              opacity: isCompiling ? 0.7 : 1,
+            }}>
+            <Sparkle size={14} />
+            {isCompiling ? 'Analyzing...' : 'Understand Error'}
+          </button>
+          <button className="btn btn-sm d-flex align-items-center gap-2"
+            onClick={runCode}
+            disabled={isCompiling}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 14px',
+              color: 'white',
+              fontWeight: '500',
+            }}>
+            <Play size={14} />
+            {isCompiling ? 'Running...' : 'Run'}
+          </button>
+          <button className="btn btn-sm"
+            onClick={() => setOutput('')}
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'white',
+              borderRadius: '8px',
+              padding: '6px 12px',
+            }}>
+            <Trash2 size={14} />
+          </button>
+          <button className="btn btn-sm"
+            onClick={toggleCompileWindow}
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: 'white',
+              borderRadius: '8px',
+              padding: '6px 12px',
+            }}>
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Output Content */}
+      <div className="flex-grow-1 overflow-auto">
+        <pre className="p-3 rounded mb-0 h-100"
+          style={{
+            fontSize: '0.9rem',
+            fontFamily: 'Consolas, Monaco, monospace',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: '#e0e0e0',
+          }}>
+          {output || '💡 Output will appear here after compilation\n\nPress "Run" or use the Run Code button to execute your code.'}
+        </pre>
+      </div>
+    </div>
+  </Resizable>
 )}
 
-                  <button
-  className="btn btn-sm d-flex align-items-center gap-2"
-  onClick={errorAnalysis}
-  disabled={isCompiling}
-  style={{
-    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    border: "none",
-    borderRadius: "8px",
-    padding: "6px 14px",
-    color: "white",
-    fontWeight: "500",
-    opacity: isCompiling ? 0.7 : 1,
-  }}
->
-  <Sparkle size={14} />
-  {isCompiling ? "Analyzing..." : "Understand Error"}
-</button>
-
-                  <button
-                    className="btn btn-sm d-flex align-items-center gap-2"
-                    onClick={runCode}
-                    disabled={isCompiling}
-                    style={{
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '6px 14px',
-                      color: 'white',
-                      fontWeight: '500'
-                    }}
-                  >
-                    <Play size={14} />
-                    {isCompiling ? 'Running...' : 'Run'}
-                  </button>
-                  <button 
-                    className="btn btn-sm" 
-                    onClick={() => setOutput("")}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      padding: '6px 12px'
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                  <button 
-                    className="btn btn-sm" 
-                    onClick={toggleCompileWindow}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      padding: '6px 12px'
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Output Content */}
-              <div className="flex-grow-1 overflow-auto">
-                <pre 
-                  className="p-3 rounded mb-0 h-100" 
-                  style={{ 
-                    fontSize: '0.9rem',
-                    fontFamily: 'Consolas, Monaco, monospace',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#e0e0e0'
-                  }}
-                >
-                  {output || "💡 Output will appear here after compilation\n\nPress 'Run' or use the Run Code button to execute your code."}
-                </pre>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
