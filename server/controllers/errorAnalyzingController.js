@@ -3,6 +3,8 @@ import Groq from "groq-sdk"
 import dotenv from "dotenv";
 dotenv.config();
 
+console.log("GROQ API KEY:", process.env.GROQ_API_KEY);
+
 const groq = new Groq({
     apiKey : process.env.GROQ_API_KEY
 });
@@ -17,7 +19,7 @@ export const errorAnalyzingController = async(req , res) =>{
         }
         const analysis = await groq.chat.completions.create({
             model:"llama3-70b-8192",
-            message:[
+            messages:[
                 {
                 role:"system",
                 content:"You are a competitive programming assistant. Explain errors clearly and suggest fixes.",

@@ -203,7 +203,7 @@ function EditorPage() {
     setIsCompiling(true);
    
     try{
-      const {data} = await axios.post(`${API_URL}/errorAnalysis/analyze-error` , {
+      const {data} = await axios.post(`${API_URL}/errorAnalyze/analyze-error` , {
         error:output,
         code:codeRef.current,
         language:selectedLanguage
