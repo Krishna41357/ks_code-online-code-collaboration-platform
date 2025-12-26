@@ -51,6 +51,7 @@ function EditorPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [AiOutput, setAiOutput] = useState("");
   const[errorOutput,setErrorOutput]=useState(0);
+  const [correctedCode , setCorrectedCode] = useState("")
   const API_URL = import.meta.env.VITE_API_URL
 
   const codeRef = useRef(null);
@@ -208,7 +209,8 @@ function EditorPage() {
         code:codeRef.current,
         language:selectedLanguage
       });
-      setOutput(data.Explanation);
+      setOutput(data.Explanation);          // for explanation UI
+    setCorrectedCode(data.correctedCode); // for "Apply Fix" button
       setErrorOutput(0);
     } catch(err){
       alert("AI is down for a while try again later");
@@ -513,6 +515,25 @@ function EditorPage() {
                   </span>
                 </h6>
                 <div className="d-flex gap-2">
+                    {correctedCode && (
+      <button
+      className="btn btn-sm d-flex align-items-center gap-2"
+      onClick={() => {
+        codeRef.current = correctedCode;
+        toast.success("Fix applied to editor");
+      }}
+      style={{
+        background: 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)',
+        border: 'none',
+        borderRadius: '8px',
+        padding: '6px 14px',
+        color: 'white',
+        fontWeight: '500'
+      }}
+    >
+      ✨ Apply Fix
+    </button>
+  )}
                   <button
                     className="btn btn-sm d-flex align-items-center gap-2"
                     onClick={errorAnalysis}
