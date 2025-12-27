@@ -41,7 +41,7 @@ const FileStorageSchema = new mongoose.Schema(
         default:"root"
     },
     isDeleted:{
-            type:boolean,
+            type:Boolean,
             default:false
     },
     isPublic:{
