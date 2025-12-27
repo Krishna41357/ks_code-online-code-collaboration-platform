@@ -89,9 +89,9 @@ function ExtendedHomepage() {
   ];
 
   const stats = [
-    { number: "10K+", label: "Active Users" },
-    { number: "50K+", label: "Code Sessions" },
-    { number: "99.9%", label: "Uptime" },
+    { number: "10+", label: "Active Users" },
+    { number: "50+", label: "Code Sessions" },
+    { number: "90%", label: "Uptime" },
     { number: "24/7", label: "Support" }
   ];
 
@@ -315,7 +315,7 @@ function ExtendedHomepage() {
                 </p>
                 <div className="d-flex gap-2">
                   <a 
-                    href="#" 
+                    href="https://github.com/Krishna41357" 
                     className="btn btn-sm d-inline-flex align-items-center justify-content-center"
                     style={{
                       width: '36px',
@@ -338,7 +338,7 @@ function ExtendedHomepage() {
                     <Github size={16} />
                   </a>
                   <a 
-                    href="#" 
+                    href="https://www.linkedin.com/in/krishna-srivastava-a84b65299/" 
                     className="btn btn-sm d-inline-flex align-items-center justify-content-center"
                     style={{
                       width: '36px',
@@ -361,7 +361,7 @@ function ExtendedHomepage() {
                     <Linkedin size={16} />
                   </a>
                   <a 
-                    href="#" 
+                    href="mailto:krishnasrivastava41357@gmail.com" 
                     className="btn btn-sm d-inline-flex align-items-center justify-content-center"
                     style={{
                       width: '36px',
