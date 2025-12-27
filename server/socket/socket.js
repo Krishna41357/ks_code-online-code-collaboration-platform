@@ -13,7 +13,6 @@ const getUserIdFromSocket = (socket) => {
   }
 };
 
-
 export const setupSocket = (io) => {
   const userSocketMap = {};
 
@@ -47,19 +46,25 @@ export const setupSocket = (io) => {
       socket.in(roomId).emit("code-change", { code });
     });
 
+    // Language change event - broadcasts to all other users in the room
+    socket.on("language-change", ({ roomId, language }) => {
+      console.log(`Language change in room ${roomId}: ${language}`);
+      socket.in(roomId).emit("language-change", { language });
+    });
+
     socket.on("sync-code", ({ socketId, code }) => {
       io.to(socketId).emit("code-change", { code });
     });
 
-    socket.on("auto-save" , async ({fileId , code})=>{
-        const userId = getUserIdFromSocket(socket);
-        if(!userId) return;
-        await autoSaveFileService({
-            fileId , 
-            code , 
-            userId
-        })
-    })
+    socket.on("auto-save", async ({fileId, code}) => {
+      const userId = getUserIdFromSocket(socket);
+      if(!userId) return;
+      await autoSaveFileService({
+        fileId, 
+        code, 
+        userId
+      });
+    });
 
     socket.on("disconnecting", () => {
       const rooms = [...socket.rooms];

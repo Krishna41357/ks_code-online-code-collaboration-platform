@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import "codemirror/mode/javascript/javascript";
 import "codemirror/mode/python/python";
-import "codemirror/mode/clike/clike"; // For C, C++, Java
+import "codemirror/mode/clike/clike";
 import "codemirror/mode/go/go";
 import "codemirror/mode/rust/rust";
 import "codemirror/theme/dracula.css";
@@ -27,7 +27,7 @@ const LANGUAGE_MODES = {
   rs: "text/x-rustsrc"
 };
 
-function Editor({ socketRef, roomId, onCodeChange, fileId }) {
+const Editor = forwardRef(({ socketRef, roomId, onCodeChange, fileId }, ref) => {
   const editorRef = useRef(null);
   const [currentFile, setCurrentFile] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -37,56 +37,76 @@ function Editor({ socketRef, roomId, onCodeChange, fileId }) {
   
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // Replace the "Load file if fileId is provided" useEffect with this:
-
-// Load file content when fileId changes
-useEffect(() => {
-  const loadFileContent = async () => {
-    if (!fileId) {
-      console.log('No fileId provided to Editor');
-      return;
-    }
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    // Method to change language mode
+    changeLanguage: (language) => {
+      if (!editorRef.current) return;
+      
+      const mode = LANGUAGE_MODES[language] || "javascript";
+      console.log('Editor: Changing language mode to', mode);
+      editorRef.current.setOption("mode", mode);
+    },
     
-    try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get(`${API_URL}/files/${fileId}/open`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+    // Method to set code
+    setCode: (code) => {
+      if (!editorRef.current) return;
       
-      setCurrentFile(data);
-      
-      // Set code in editor if it exists and editor is ready
-      if (editorRef.current && data.code !== undefined) {
-        const currentCode = editorRef.current.getValue();
-        
-        // Only update if code is different to avoid unnecessary updates
-        if (currentCode !== data.code) {
-          editorRef.current.setValue(data.code || '');
-          onCodeChange(data.code || '');
-        }
+      const cursor = editorRef.current.getCursor();
+      editorRef.current.setValue(code);
+      editorRef.current.setCursor(cursor);
+    },
+    
+    // Method to get current code
+    getCode: () => {
+      return editorRef.current ? editorRef.current.getValue() : '';
+    }
+  }));
+
+  // Load file content when fileId changes
+  useEffect(() => {
+    const loadFileContent = async () => {
+      if (!fileId) {
+        console.log('No fileId provided to Editor');
+        return;
       }
       
-      console.log('Editor: File loaded', {
-        fileId: data._id,
-        filename: data.filename,
-        language: data.language
-      });
-    } catch (error) {
-      console.error('Editor: Failed to load file:', error);
-      
-      // Don't show toast here - let parent component handle it
-      // toast.error('Failed to load file');
-    }
-  };
+      try {
+        const token = localStorage.getItem('token');
+        const { data } = await axios.get(`${API_URL}/files/${fileId}/open`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        setCurrentFile(data);
+        
+        // Set code in editor if it exists and editor is ready
+        if (editorRef.current && data.code !== undefined) {
+          const currentCode = editorRef.current.getValue();
+          
+          // Only update if code is different to avoid unnecessary updates
+          if (currentCode !== data.code) {
+            editorRef.current.setValue(data.code || '');
+            onCodeChange(data.code || '');
+          }
+        }
+        
+        console.log('Editor: File loaded', {
+          fileId: data._id,
+          filename: data.filename,
+          language: data.language
+        });
+      } catch (error) {
+        console.error('Editor: Failed to load file:', error);
+      }
+    };
 
-  // Only load if we have both fileId and editor is initialized
-  if (fileId && isInitialized.current) {
-    loadFileContent();
-  } else if (fileId) {
-    // If editor isn't ready yet, we'll load it after initialization
-    console.log('Editor: Waiting for initialization before loading file');
-  }
-}, [fileId]); // Only depend on fileId
+    // Only load if we have both fileId and editor is initialized
+    if (fileId && isInitialized.current) {
+      loadFileContent();
+    } else if (fileId) {
+      console.log('Editor: Waiting for initialization before loading file');
+    }
+  }, [fileId]);
 
   // Initialize CodeMirror
   useEffect(() => {
@@ -155,14 +175,6 @@ useEffect(() => {
     };
   }, []);
 
-  // Update editor mode when language changes
-  useEffect(() => {
-    if (editorRef.current && currentFile?.language) {
-      const mode = LANGUAGE_MODES[currentFile.language] || "javascript";
-      editorRef.current.setOption("mode", mode);
-    }
-  }, [currentFile?.language]);
-
   // Listen for code changes from socket
   useEffect(() => {
     if (socketRef.current) {
@@ -178,11 +190,22 @@ useEffect(() => {
           editorRef.current.scrollTo(scrollInfo.left, scrollInfo.top);
         }
       });
+
+      // Listen for language changes from other users
+      socketRef.current.on('language-change', ({ language }) => {
+        console.log('Editor: Received language change:', language);
+        
+        if (editorRef.current) {
+          const mode = LANGUAGE_MODES[language] || "javascript";
+          editorRef.current.setOption("mode", mode);
+        }
+      });
     }
 
     return () => {
       if (socketRef.current) {
         socketRef.current.off('code-change');
+        socketRef.current.off('language-change');
       }
     };
   }, [socketRef.current]);
@@ -201,7 +224,6 @@ useEffect(() => {
       setLastSaved(new Date());
     } catch (error) {
       console.error('Auto-save failed:', error);
-      // Don't show error toast for auto-save failures
     }
   };
 
@@ -247,16 +269,8 @@ useEffect(() => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fileId]);
 
-  // Expose save method to parent component
-  useEffect(() => {
-    if (window) {
-      window.editorSave = handleSave;
-    }
-  }, [fileId]);
-
   return (
     <div className="h-100 d-flex flex-column position-relative">
-      {/* File Info Bar */}
       {currentFile && (
         <div 
           className="d-flex align-items-center justify-content-between px-3 py-2"
@@ -298,7 +312,6 @@ useEffect(() => {
         </div>
       )}
       
-      {/* Editor */}
       <div className="flex-grow-1" style={{ overflow: 'hidden' }}>
         <textarea id="realtimeEditor"></textarea>
       </div>
@@ -325,6 +338,8 @@ useEffect(() => {
       `}</style>
     </div>
   );
-}
+});
+
+Editor.displayName = 'Editor';
 
 export default Editor;

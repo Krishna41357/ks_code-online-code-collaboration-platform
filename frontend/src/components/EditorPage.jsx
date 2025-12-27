@@ -38,13 +38,14 @@ function EditorPage() {
   const [showFileMenu, setShowFileMenu] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [newFileName, setNewFileName] = useState("");
+  
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const codeRef = useRef(null);
   const videoRef = useRef(null);
   const socketRef = useRef(null);
-
+  const editorComponentRef = useRef(null);
   const Location = useLocation();
   const navigate = useNavigate();
   const { roomId } = useParams();
@@ -102,7 +103,6 @@ useEffect(() => {
 
   loadOrCreateFile();
 }, [roomId, Location.state?.fileId]); // Re-run if roomId or fileId changes
-
   // Video call functions
   const startVideoCall = useCallback(async () => {
     try {
@@ -230,20 +230,37 @@ useEffect(() => {
   };
 
   const handleChangeLanguage = async (newLanguage) => {
-    try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.patch(
-        `${API_URL}/files/language`,
-        { fileId, language: newLanguage },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setCurrentFile(data);
-      setSelectedLanguage(newLanguage);
-      toast.success('Language changed');
-    } catch (error) {
-      toast.error('Failed to change language');
+  try {
+    const token = localStorage.getItem('token');
+    const { data } = await axios.patch(
+      `${API_URL}/files/language`,
+      { fileId, language: newLanguage },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    
+    // Update local state
+    setCurrentFile(data);
+    setSelectedLanguage(newLanguage);
+    
+    // Immediately update editor mode using the ref
+    if (editorComponentRef.current) {
+      editorComponentRef.current.changeLanguage(data.language);
     }
-  };
+    
+    // Notify other users about language change via socket
+    if (socketRef.current && roomId) {
+      socketRef.current.emit('language-change', {
+        roomId,
+        language: data.language
+      });
+    }
+    
+    toast.success('Language changed');
+  } catch (error) {
+    console.error('Language change error:', error);
+    toast.error('Failed to change language');
+  }
+};
 
   const handleDeleteFile = async () => {
     if (!confirm('Are you sure you want to delete this file?')) return;
@@ -697,13 +714,14 @@ useEffect(() => {
             }}
           >
             <Editor
-              socketRef={socketRef}
-              roomId={roomId}
-              fileId={fileId}
-              onCodeChange={(code) => {
-                codeRef.current = code;
-              }}
-            />
+  ref={editorComponentRef}  // ADD THIS LINE
+  socketRef={socketRef}
+  roomId={roomId}
+  fileId={fileId}
+  onCodeChange={(code) => {
+    codeRef.current = code;
+  }}
+/>
           </div>
 
           {/* Compiler Output */}
