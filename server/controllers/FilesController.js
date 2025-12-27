@@ -3,269 +3,444 @@ import { autoSaveFileService } from "../services/FileService.js";
 
 //Helper Functions
 
-const hasViewAccess = (file , userId) =>{
-    return(
-        file.isPublic || file.owner.toString()===userId || file.collaborators.some(id=>id.toString()===userId)
-    );
+const hasViewAccess = (file, userId) => {
+  return (
+    file.isPublic || 
+    file.owner.toString() === userId || 
+    file.collaborators.some(id => id.toString() === userId)
+  );
 };
 
-
-const hasEditAccess = (file , userId)=>{
-   return (
-    file.owner.toString()===userId || file.collaborators.some(id=>id.toString()===userId)
-);
+const hasEditAccess = (file, userId) => {
+  return (
+    file.owner.toString() === userId || 
+    file.collaborators.some(id => id.toString() === userId)
+  );
 };
 
-const getExtensionByLanguage = (language) =>{
-    const map = {
-        javascript:"js",
-        typescript:"ts",
-        python: "py",
-        cpp: "cpp",
-        c: "c",
-        java: "java",
-        go: "go",
-        rust: "rs"
-    };
-    return map[language] || "txt";
-}
+// Map short codes to full language names
+const normalizeLanguage = (lang) => {
+  const map = {
+    js: "javascript",
+    ts: "typescript",
+    py: "python",
+    cpp: "cpp",
+    c: "c",
+    java: "java",
+    go: "go",
+    rs: "rust"
+  };
+  return map[lang] || lang;
+};
+
+// Map full language names to extensions
+const getExtensionByLanguage = (language) => {
+  const map = {
+    javascript: "js",
+    typescript: "ts",
+    python: "py",
+    cpp: "cpp",
+    c: "c",
+    java: "java",
+    go: "go",
+    rust: "rs"
+  };
+  return map[language] || "txt";
+};
 
 const getStarterTemplate = (language) => {
   const templates = {
     javascript: `console.log("Hello World");`,
+    typescript: `console.log("Hello World");`,
     python: `print("Hello World")`,
     cpp: `#include <iostream>
 using namespace std;
+
 int main() {
-  cout << "Hello World";
-  return 0;
+    cout << "Hello World" << endl;
+    return 0;
 }`,
     c: `#include <stdio.h>
+
 int main() {
-  printf("Hello World");
-  return 0;
+    printf("Hello World\\n");
+    return 0;
 }`,
-    java: `class Main {
-  public static void main(String[] args) {
-    System.out.println("Hello World");
-  }
+    java: `public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello World");
+    }
 }`,
+    go: `package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello World")
+}`,
+    rust: `fn main() {
+    println!("Hello World");
+}`
   };
   return templates[language] || "";
 };
 
-// controller
+// CREATE FILE AND ROOM
+export const createRoomAndFile = async (req, res) => {
+  try {
+    const { language } = req.body;
+    const userId = req.user.id;
 
-export const createRoomAndFile = async (req , res)=>{
-    try{
-        const {language} = req.body;
-        const userId = req.user.id;
+    // Normalize language (js -> javascript, py -> python, etc.)
+    const normalizedLanguage = normalizeLanguage(language);
+    const extension = getExtensionByLanguage(normalizedLanguage);
 
-        const extension = getExtensionByLanguage(language);
+    const file = await FileStorage.create({
+      owner: userId,
+      filename: `main.${extension}`,
+      language: normalizedLanguage,
+      code: getStarterTemplate(normalizedLanguage)
+    });
 
-        const file = await FileStorage.create({
-            owner:userId,
-            filename:`main.${extension}`,
-            language,
-            code:getStarterTemplate(language)
-        });
-        res.status(201).json({
-            fileId:file._id,
-            roomId:file.roomId,
-            file
-        });
-    } catch(err){
-        res.status(500).json({
-            message:"Failed to create a file" , err
-        })
-    }
+    res.status(201).json({
+      fileId: file._id,
+      roomId: file.roomId,
+      file
+    });
+  } catch (err) {
+    console.error("Create file error:", err);
+    res.status(500).json({
+      message: "Failed to create a file",
+      error: err.message
+    });
+  }
 };
 
-//open file in editor 
-export const openFileInEditor = async (req , res)=>{
-    try{
-        const{fileId} = req.params;
-        const userId = req.user.id;
+// OPEN FILE IN EDITOR - Works with both roomId and fileId
+export const openFileInEditor = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user.id;
 
-        const file = await FileStorage.findById(fileId);
-        if(!file || file.isDeleted)
-            return res.status(404).json({message:"File not found"});
-        if(!hasViewAccess(file , userId))
-            return res.status(403).json({message:"Access denied"});
-
-        res.json(file);
-
-    }catch(err){
-        res.status(500).json({message:"Failed server frustrated developer "});
+    // Try to find by MongoDB _id first, then by roomId
+    let file = await FileStorage.findById(fileId).catch(() => null);
+    
+    if (!file) {
+      file = await FileStorage.findOne({ roomId: fileId });
     }
+
+    if (!file || file.isDeleted) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    if (!hasViewAccess(file, userId)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json(file);
+  } catch (err) {
+    console.error("Open file error:", err);
+    res.status(500).json({ 
+      message: "Failed to open file",
+      error: err.message 
+    });
+  }
 };
 
-export const saveFile=async(req , res)=>{
-    try{
-        const {fileId , code} = req.body;
-        const userId = req.user.id;
-        const file = await FileStorage.findById(fileId);
-        if(!file || !hasEditAccess(file , userId))
-            return res.status(403).json({message:"No edit access"});
+// SAVE FILE
+export const saveFile = async (req, res) => {
+  try {
+    const { fileId, code } = req.body;
+    const userId = req.user.id;
 
-        file.code = code;
-        file.version+=1;
-        await file.save();
-
-        res.json({ message: "File saved", version: file.version });
-
-    } catch(err){
-        res.status(500).json({message:"Save failed"});
+    // Try MongoDB _id first, then roomId
+    let file = await FileStorage.findById(fileId).catch(() => null);
+    if (!file) {
+      file = await FileStorage.findOne({ roomId: fileId });
     }
+
+    if (!file || !hasEditAccess(file, userId)) {
+      return res.status(403).json({ message: "No edit access" });
+    }
+
+    file.code = code;
+    file.version += 1;
+    await file.save();
+
+    res.json({ 
+      message: "File saved", 
+      version: file.version,
+      fileId: file._id,
+      roomId: file.roomId
+    });
+  } catch (err) {
+    console.error("Save file error:", err);
+    res.status(500).json({ 
+      message: "Save failed",
+      error: err.message 
+    });
+  }
 };
 
-//auto-save
-
-export const autoSaveFile = async(req , res) =>{
-    try{
-        const {fileId , code } = req.body;
-        await autoSaveFileService({
-            fileId , 
-            code , 
-            userId: req.user.id
-        });
-        res.sendStatus(204);
-
-
-    } catch(err){
-        res.sendStatus(204);
- //auto save should never block the user
-    }
-}
-
-//change language 
-export const changeFileLanguage = async(req , res)=>{
-    try{
-        const {fileId , language} = req.body;
-        const userId = req.user.id;
-        const file = await FileStorage.findById(fileId);
-        if(!file || !hasEditAccess(file , userId))
-            return res.status(403).json({message:"No access"});
-        const ext = getExtensionByLanguage(language);
-        file.language = language;
-        file.filename = file.filename.split(".")[0]+"."+ ext;
-        await file.save();
-        res.json(file);
-    } catch(err){
-        res.status(500).json({message:"Language change failed"});
-    }
+// AUTO-SAVE FILE
+export const autoSaveFile = async (req, res) => {
+  try {
+    const { fileId, code } = req.body;
+    await autoSaveFileService({
+      fileId,
+      code,
+      userId: req.user.id
+    });
+    res.sendStatus(204);
+  } catch (err) {
+    console.error("Auto-save error:", err);
+    res.sendStatus(204); // Auto-save should never block the user
+  }
 };
 
-//rename file
+// CHANGE LANGUAGE
+export const changeFileLanguage = async (req, res) => {
+  try {
+    const { fileId, language } = req.body;
+    const userId = req.user.id;
 
-export const renameFile = async(req , res)=>{
-    try{
-        const {fileId , newName} = req.body;
-        const userId = req.user.id;
-        const file = await FileStorage.findById(fileId);
-        if(!file || !hasEditAccess(file , userId))
-            return res.status(403).json({message:"No access"});
-        const ext = file.filename.split(".").pop();
-        file.filename = `${newName}.${ext}`;
-
-        await file.save();
-        res.json(file);
-    }catch(err){
-        res.status(500).json({message:"Rename Failed"});
+    // Try MongoDB _id first, then roomId
+    let file = await FileStorage.findById(fileId).catch(() => null);
+    if (!file) {
+      file = await FileStorage.findOne({ roomId: fileId });
     }
+
+    if (!file || !hasEditAccess(file, userId)) {
+      return res.status(403).json({ message: "No access" });
+    }
+
+    // Normalize language
+    const normalizedLanguage = normalizeLanguage(language);
+    const ext = getExtensionByLanguage(normalizedLanguage);
+    
+    file.language = normalizedLanguage;
+    file.filename = file.filename.split(".")[0] + "." + ext;
+    
+    await file.save();
+    res.json(file);
+  } catch (err) {
+    console.error("Language change error:", err);
+    res.status(500).json({ 
+      message: "Language change failed",
+      error: err.message 
+    });
+  }
 };
-// 7️⃣ Change extension manually
+
+// RENAME FILE
+export const renameFile = async (req, res) => {
+  try {
+    const { fileId, newName } = req.body;
+    const userId = req.user.id;
+
+    // Try MongoDB _id first, then roomId
+    let file = await FileStorage.findById(fileId).catch(() => null);
+    if (!file) {
+      file = await FileStorage.findOne({ roomId: fileId });
+    }
+
+    if (!file || !hasEditAccess(file, userId)) {
+      return res.status(403).json({ message: "No access" });
+    }
+
+    const ext = file.filename.split(".").pop();
+    file.filename = `${newName}.${ext}`;
+
+    await file.save();
+    res.json(file);
+  } catch (err) {
+    console.error("Rename error:", err);
+    res.status(500).json({ 
+      message: "Rename failed",
+      error: err.message 
+    });
+  }
+};
+
+// CHANGE EXTENSION
 export const changeFileExtension = async (req, res) => {
   try {
     const { fileId, extension } = req.body;
     const userId = req.user.id;
-    const allowed = ["js","ts","py","cpp","c","java","go","rs","txt"];
-if (!allowed.includes(extension))
-  return res.status(400).json({ message: "Invalid extension" });
+    const allowed = ["js", "ts", "py", "cpp", "c", "java", "go", "rs", "txt"];
 
-    const file = await FileStorage.findById(fileId);
-    if (!file || !hasEditAccess(file, userId))
+    if (!allowed.includes(extension)) {
+      return res.status(400).json({ message: "Invalid extension" });
+    }
+
+    // Try MongoDB _id first, then roomId
+    let file = await FileStorage.findById(fileId).catch(() => null);
+    if (!file) {
+      file = await FileStorage.findOne({ roomId: fileId });
+    }
+
+    if (!file || !hasEditAccess(file, userId)) {
       return res.status(403).json({ message: "No access" });
+    }
 
     const name = file.filename.split(".")[0];
     file.filename = `${name}.${extension}`;
 
     await file.save();
     res.json(file);
-  } catch {
-    res.status(500).json({ message: "Extension change failed" });
+  } catch (err) {
+    console.error("Extension change error:", err);
+    res.status(500).json({ 
+      message: "Extension change failed",
+      error: err.message 
+    });
   }
 };
 
-export const getUserFiles = async(req , res)=>{
-   try{ 
+// GET USER FILES
+export const getUserFiles = async (req, res) => {
+  try {
     const userId = req.user.id;
     const files = await FileStorage.find({
-        isDeleted:false ,
-        $or:[{owner:userId},{collaborators:userId}]
-    }).sort({updatedAt:-1});
+      isDeleted: false,
+      $or: [{ owner: userId }, { collaborators: userId }]
+    }).sort({ updatedAt: -1 });
+    
     res.json(files);
-}catch(err){
-    res.status(500).json({message:"server error"});
-}
+  } catch (err) {
+    console.error("Get files error:", err);
+    res.status(500).json({ 
+      message: "Server error",
+      error: err.message 
+    });
+  }
 };
 
+// GET RECENT FILES
 export const getRecentFiles = async (req, res) => {
-  const userId = req.user.id;
-  const files = await FileStorage.find({
-    isDeleted: false,
-    $or: [{ owner: userId }, { collaborators: userId }]
-  })
-    .sort({ updatedAt: -1 })
-    .limit(10);
+  try {
+    const userId = req.user.id;
+    const files = await FileStorage.find({
+      isDeleted: false,
+      $or: [{ owner: userId }, { collaborators: userId }]
+    })
+      .sort({ updatedAt: -1 })
+      .limit(10);
 
-  res.json(files);
+    res.json(files);
+  } catch (err) {
+    console.error("Get recent files error:", err);
+    res.status(500).json({ 
+      message: "Server error",
+      error: err.message 
+    });
+  }
 };
 
-//soft-delete
-export const deleteFile = async(req , res)=>{
-    const {fileId} = req.params;
+// DELETE FILE
+export const deleteFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
     const userId = req.user.id;
-    const file = await FileStorage.findById(fileId);
-    if(!file || file.owner.toString() !== userId)
-        return res.status(403).json({message:"Only file owners are allowed"});
+
+    // Try MongoDB _id first, then roomId
+    let file = await FileStorage.findById(fileId).catch(() => null);
+    if (!file) {
+      file = await FileStorage.findOne({ roomId: fileId });
+    }
+
+    if (!file || file.owner.toString() !== userId) {
+      return res.status(403).json({ message: "Only file owners are allowed" });
+    }
 
     file.isDeleted = true;
     await file.save();
 
-    res.json({message:"File deleted"});
+    res.json({ message: "File deleted" });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ 
+      message: "Delete failed",
+      error: err.message 
+    });
+  }
 };
 
-//restore-file
-export const restoreFile = async(req , res)=>{
-    const {fileId} = req.params;
+// RESTORE FILE
+export const restoreFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
     const userId = req.user.id;
-    const file = await FileStorage.findById(fileId)
-    if(!file || !hasEditAccess(file , userId))
-        return res.status(403).json({message:"No Access"});
+
+    // Try MongoDB _id first, then roomId
+    let file = await FileStorage.findById(fileId).catch(() => null);
+    if (!file) {
+      file = await FileStorage.findOne({ roomId: fileId });
+    }
+
+    if (!file || !hasEditAccess(file, userId)) {
+      return res.status(403).json({ message: "No access" });
+    }
+
     file.isDeleted = false;
     await file.save();
-    res.json({message:"File restored"});
-};
-
-export const getFileMeta = async (req, res) => {
-  const { roomId } = req.params;
-
-  const file = await FileStorage.findOne({ roomId });
-  if (!file || !hasViewAccess(file, req.user.id)) {
-    return res.status(403).json({ message: "Access denied" });
+    
+    res.json({ message: "File restored" });
+  } catch (err) {
+    console.error("Restore error:", err);
+    res.status(500).json({ 
+      message: "Restore failed",
+      error: err.message 
+    });
   }
-
-  res.json({
-    fileId: file._id,
-    roomId: file.roomId,
-    filename: file.filename,
-    language: file.language,
-    version: file.version,
-    collaborators: file.collaborators,
-    updatedAt: file.updatedAt
-  });
 };
 
+// GET FILE META - Works with roomId
+export const getFileMeta = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const userId = req.user.id;
 
+    const file = await FileStorage.findOne({ roomId });
 
+    if (!file) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    if (!hasViewAccess(file, userId)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json({
+      fileId: file._id,
+      roomId: file.roomId,
+      filename: file.filename,
+      language: file.language,
+      version: file.version,
+      collaborators: file.collaborators,
+      updatedAt: file.updatedAt,
+      owner: file.owner
+    });
+  } catch (err) {
+    console.error("Get meta error:", err);
+    res.status(500).json({ 
+      message: "Failed to get file metadata",
+      error: err.message 
+    });
+  }
+};
+
+export default {
+  createRoomAndFile,
+  openFileInEditor,
+  saveFile,
+  autoSaveFile,
+  changeFileLanguage,
+  renameFile,
+  changeFileExtension,
+  getUserFiles,
+  getRecentFiles,
+  deleteFile,
+  restoreFile,
+  getFileMeta
+};

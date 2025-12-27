@@ -58,13 +58,15 @@ function EditorPage() {
       
       try {
         const token = localStorage.getItem('token');
-        const { data } = await axios.get(`${API_URL}/files/${fileId}/meta`, {
+        // Use the open endpoint which works with both fileId and roomId
+        const { data } = await axios.get(`${API_URL}/files/${fileId}/open`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setCurrentFile(data);
         setSelectedLanguage(data.language);
       } catch (error) {
         console.error('Failed to load file metadata:', error);
+        toast.error('Failed to load file');
       }
     };
 
