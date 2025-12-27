@@ -248,21 +248,24 @@ export const restoreFile = async(req , res)=>{
     res.json({message:"File restored"});
 };
 
-export const getFileMeta = async(req , res)=>{
-    const {fileId} = req.params;
+export const getFileMeta = async (req, res) => {
+  const { roomId } = req.params;
 
-    const file = await FileStorage.findById(fileId);
-    if (!file || !hasViewAccess(file, req.user.id))
-  return res.status(403).json({ message: "Access denied" });
+  const file = await FileStorage.findOne({ roomId });
+  if (!file || !hasViewAccess(file, req.user.id)) {
+    return res.status(403).json({ message: "Access denied" });
+  }
 
-    res.json({
-  filename: file.filename,
-  language: file.language,
-  version: file.version,
-  collaborators: file.collaborators,
-  updatedAt: file.updatedAt
-});
+  res.json({
+    fileId: file._id,
+    roomId: file.roomId,
+    filename: file.filename,
+    language: file.language,
+    version: file.version,
+    collaborators: file.collaborators,
+    updatedAt: file.updatedAt
+  });
 };
 
 
-//making fileId==roomId hence it fits out socket setup
+

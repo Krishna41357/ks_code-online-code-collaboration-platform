@@ -65,5 +65,5 @@ const FileStorageSchema = new mongoose.Schema(
 }
 );
 
-const FileStorage = mongoose.model("FileStrage" , FileStorageSchema);
+const FileStorage = mongoose.model("FileStorage" , FileStorageSchema);
 export default FileStorage;

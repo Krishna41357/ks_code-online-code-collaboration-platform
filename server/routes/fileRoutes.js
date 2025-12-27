@@ -36,7 +36,7 @@ router.get("/" , protect , getUserFiles);
 
 router.get("/recent/list" , protect , getRecentFiles);
 
-router.get("/:fileId/meta" , protect , getFileMeta);
+router.get("/:roomId/meta" , protect , getFileMeta);
 
 router.delete("/:fileId/delete" , protect , deleteFile);
 
