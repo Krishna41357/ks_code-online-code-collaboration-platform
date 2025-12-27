@@ -71,7 +71,7 @@ export const createRoomAndFile = async (req , res)=>{
         });
         res.status(201).json({
             fileId:file._id,
-            roomId:file._id,
+            roomId:file.roomId,
             file
         });
     } catch(err){

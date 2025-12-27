@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const FileStorageSchema = new mongoose.Schema(
     {
+        roomId: {
+  type: String,
+  unique: true,
+  default: uuidv4
+},
     owner:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"User",
