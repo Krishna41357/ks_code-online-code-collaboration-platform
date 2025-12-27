@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createRoomAndFile,
+  joinOrCreateRoom,
   openFileInEditor,
   saveFile,
   autoSaveFile,
@@ -23,6 +24,7 @@ const router = express.Router();
 
 // File operations
 router.post("/create", protect, createRoomAndFile);
+router.post("/join", protect, joinOrCreateRoom); // NEW: Join room endpoint
 router.post("/save", protect, saveFile);
 router.post("/autosave", protect, autoSaveFile);
 router.patch("/language", protect, changeFileLanguage);

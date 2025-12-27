@@ -37,34 +37,56 @@ function Editor({ socketRef, roomId, onCodeChange, fileId }) {
   
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // Load file if fileId is provided
-  useEffect(() => {
-    const loadFile = async () => {
-      if (!fileId) return;
-      
-      try {
-        const token = localStorage.getItem('token');
-        const { data } = await axios.get(`${API_URL}/files/${fileId}/open`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        setCurrentFile(data);
-        
-        // Set code in editor if it exists and editor is ready
-        if (editorRef.current && data.code) {
-          editorRef.current.setValue(data.code);
-          onCodeChange(data.code); // Update parent component
-        }
-      } catch (error) {
-        console.error('Failed to load file:', error);
-        toast.error('Failed to load file');
-      }
-    };
+  // Replace the "Load file if fileId is provided" useEffect with this:
 
-    if (fileId) {
-      loadFile();
+// Load file content when fileId changes
+useEffect(() => {
+  const loadFileContent = async () => {
+    if (!fileId) {
+      console.log('No fileId provided to Editor');
+      return;
     }
-  }, [fileId]);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.get(`${API_URL}/files/${fileId}/open`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setCurrentFile(data);
+      
+      // Set code in editor if it exists and editor is ready
+      if (editorRef.current && data.code !== undefined) {
+        const currentCode = editorRef.current.getValue();
+        
+        // Only update if code is different to avoid unnecessary updates
+        if (currentCode !== data.code) {
+          editorRef.current.setValue(data.code || '');
+          onCodeChange(data.code || '');
+        }
+      }
+      
+      console.log('Editor: File loaded', {
+        fileId: data._id,
+        filename: data.filename,
+        language: data.language
+      });
+    } catch (error) {
+      console.error('Editor: Failed to load file:', error);
+      
+      // Don't show toast here - let parent component handle it
+      // toast.error('Failed to load file');
+    }
+  };
+
+  // Only load if we have both fileId and editor is initialized
+  if (fileId && isInitialized.current) {
+    loadFileContent();
+  } else if (fileId) {
+    // If editor isn't ready yet, we'll load it after initialization
+    console.log('Editor: Waiting for initialization before loading file');
+  }
+}, [fileId]); // Only depend on fileId
 
   // Initialize CodeMirror
   useEffect(() => {

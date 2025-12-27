@@ -52,26 +52,56 @@ function EditorPage() {
   const fileId = Location.state?.fileId || roomId;
 
   // Load file metadata
-  useEffect(() => {
-    const loadFileMeta = async () => {
-      if (!fileId) return;
+// Replace the existing "Load file metadata" useEffect with this:
+
+// Load or create file when entering room
+useEffect(() => {
+  const loadOrCreateFile = async () => {
+    // Use fileId from location.state if available, otherwise use roomId from params
+    const id = Location.state?.fileId || roomId;
+    
+    if (!id) {
+      console.error('No fileId or roomId provided');
+      toast.error('Invalid room');
+      navigate('/home');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
       
-      try {
-        const token = localStorage.getItem('token');
-        // Use the open endpoint which works with both fileId and roomId
-        const { data } = await axios.get(`${API_URL}/files/${fileId}/open`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setCurrentFile(data);
-        setSelectedLanguage(data.language);
-      } catch (error) {
-        console.error('Failed to load file metadata:', error);
+      console.log('Loading/creating file for ID:', id);
+      
+      // The /open endpoint will automatically create the file if it doesn't exist
+      const { data } = await axios.get(`${API_URL}/files/${id}/open`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setCurrentFile(data);
+      setSelectedLanguage(data.language);
+      console.log('File loaded successfully:', {
+        fileId: data._id,
+        roomId: data.roomId,
+        filename: data.filename
+      });
+    } catch (error) {
+      console.error('Failed to load/create file:', error);
+      
+      if (error.response?.status === 404) {
+        toast.error('File not found');
+      } else if (error.response?.status === 403) {
+        toast.error('Access denied');
+      } else {
         toast.error('Failed to load file');
       }
-    };
+      
+      // Don't navigate away immediately - let user decide
+      // navigate('/home');
+    }
+  };
 
-    loadFileMeta();
-  }, [fileId]);
+  loadOrCreateFile();
+}, [roomId, Location.state?.fileId]); // Re-run if roomId or fileId changes
 
   // Video call functions
   const startVideoCall = useCallback(async () => {
