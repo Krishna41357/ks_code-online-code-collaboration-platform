@@ -333,15 +333,16 @@ const Editor = forwardRef(({ socketRef, roomId, onCodeChange, fileId }, ref) => 
               className="btn btn-sm"
               disabled={saving}
               style={{
-                background: 'rgba(102, 126, 234, 0.2)',
-                border: '1px solid rgba(102, 126, 234, 0.3)',
-                color: '#667eea',
+                background: '#ffffff',
+                border: '2px solid white',
+                color: 'black',
                 borderRadius: '6px',
                 padding: '4px 12px',
-                fontSize: '12px'
+                fontSize: '12px',
+                fontWeight:'600'
               }}
             >
-              💾 Save (Ctrl+S)
+              Save (Ctrl+S)
             </button>
           </div>
         </div>
