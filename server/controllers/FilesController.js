@@ -18,6 +18,19 @@ const hasEditAccess = (file, userId) => {
   );
 };
 
+// Find file by either MongoDB _id or roomId
+const findFileById = async (id) => {
+  // Try MongoDB _id first
+  let file = await FileStorage.findById(id).catch(() => null);
+  
+  // If not found, try roomId
+  if (!file) {
+    file = await FileStorage.findOne({ roomId: id });
+  }
+  
+  return file;
+};
+
 // Map short codes to full language names
 const normalizeLanguage = (lang) => {
   const map = {
@@ -119,21 +132,20 @@ export const createRoomAndFile = async (req, res) => {
 // OPEN FILE IN EDITOR - Works with both roomId and fileId
 export const openFileInEditor = async (req, res) => {
   try {
-    const { fileId } = req.params;
+    const { id } = req.params; // Changed from fileId to id
     const userId = req.user.id;
 
-    // Try to find by MongoDB _id first, then by roomId
-    let file = await FileStorage.findById(fileId).catch(() => null);
-    
-    if (!file) {
-      file = await FileStorage.findOne({ roomId: fileId });
-    }
+    console.log('Opening file with id:', id); // Debug log
+
+    const file = await findFileById(id);
 
     if (!file || file.isDeleted) {
+      console.log('File not found or deleted:', id); // Debug log
       return res.status(404).json({ message: "File not found" });
     }
 
     if (!hasViewAccess(file, userId)) {
+      console.log('Access denied for user:', userId); // Debug log
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -153,11 +165,9 @@ export const saveFile = async (req, res) => {
     const { fileId, code } = req.body;
     const userId = req.user.id;
 
-    // Try MongoDB _id first, then roomId
-    let file = await FileStorage.findById(fileId).catch(() => null);
-    if (!file) {
-      file = await FileStorage.findOne({ roomId: fileId });
-    }
+    console.log('Saving file:', fileId); // Debug log
+
+    const file = await findFileById(fileId);
 
     if (!file || !hasEditAccess(file, userId)) {
       return res.status(403).json({ message: "No edit access" });
@@ -204,11 +214,7 @@ export const changeFileLanguage = async (req, res) => {
     const { fileId, language } = req.body;
     const userId = req.user.id;
 
-    // Try MongoDB _id first, then roomId
-    let file = await FileStorage.findById(fileId).catch(() => null);
-    if (!file) {
-      file = await FileStorage.findOne({ roomId: fileId });
-    }
+    const file = await findFileById(fileId);
 
     if (!file || !hasEditAccess(file, userId)) {
       return res.status(403).json({ message: "No access" });
@@ -238,11 +244,7 @@ export const renameFile = async (req, res) => {
     const { fileId, newName } = req.body;
     const userId = req.user.id;
 
-    // Try MongoDB _id first, then roomId
-    let file = await FileStorage.findById(fileId).catch(() => null);
-    if (!file) {
-      file = await FileStorage.findOne({ roomId: fileId });
-    }
+    const file = await findFileById(fileId);
 
     if (!file || !hasEditAccess(file, userId)) {
       return res.status(403).json({ message: "No access" });
@@ -273,11 +275,7 @@ export const changeFileExtension = async (req, res) => {
       return res.status(400).json({ message: "Invalid extension" });
     }
 
-    // Try MongoDB _id first, then roomId
-    let file = await FileStorage.findById(fileId).catch(() => null);
-    if (!file) {
-      file = await FileStorage.findOne({ roomId: fileId });
-    }
+    const file = await findFileById(fileId);
 
     if (!file || !hasEditAccess(file, userId)) {
       return res.status(403).json({ message: "No access" });
@@ -340,14 +338,10 @@ export const getRecentFiles = async (req, res) => {
 // DELETE FILE
 export const deleteFile = async (req, res) => {
   try {
-    const { fileId } = req.params;
+    const { id } = req.params; // Changed from fileId to id
     const userId = req.user.id;
 
-    // Try MongoDB _id first, then roomId
-    let file = await FileStorage.findById(fileId).catch(() => null);
-    if (!file) {
-      file = await FileStorage.findOne({ roomId: fileId });
-    }
+    const file = await findFileById(id);
 
     if (!file || file.owner.toString() !== userId) {
       return res.status(403).json({ message: "Only file owners are allowed" });
@@ -369,14 +363,10 @@ export const deleteFile = async (req, res) => {
 // RESTORE FILE
 export const restoreFile = async (req, res) => {
   try {
-    const { fileId } = req.params;
+    const { id } = req.params; // Changed from fileId to id
     const userId = req.user.id;
 
-    // Try MongoDB _id first, then roomId
-    let file = await FileStorage.findById(fileId).catch(() => null);
-    if (!file) {
-      file = await FileStorage.findOne({ roomId: fileId });
-    }
+    const file = await findFileById(id);
 
     if (!file || !hasEditAccess(file, userId)) {
       return res.status(403).json({ message: "No access" });
@@ -395,13 +385,13 @@ export const restoreFile = async (req, res) => {
   }
 };
 
-// GET FILE META - Works with roomId
+// GET FILE META - Works with both roomId and fileId
 export const getFileMeta = async (req, res) => {
   try {
-    const { roomId } = req.params;
+    const { id } = req.params; // Changed from roomId to id
     const userId = req.user.id;
 
-    const file = await FileStorage.findOne({ roomId });
+    const file = await findFileById(id);
 
     if (!file) {
       return res.status(404).json({ message: "File not found" });

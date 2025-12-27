@@ -17,7 +17,11 @@ import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// File operations - must come BEFORE dynamic routes
+// ========================================
+// SPECIFIC ROUTES (must come FIRST)
+// ========================================
+
+// File operations
 router.post("/create", protect, createRoomAndFile);
 router.post("/save", protect, saveFile);
 router.post("/autosave", protect, autoSaveFile);
@@ -25,14 +29,18 @@ router.patch("/language", protect, changeFileLanguage);
 router.patch("/rename", protect, renameFile);
 router.patch("/extension", protect, changeFileExtension);
 
-// List operations - must come BEFORE dynamic routes
+// List operations
 router.get("/", protect, getUserFiles);
 router.get("/recent/list", protect, getRecentFiles);
 
-// Dynamic routes - must come AFTER specific routes
-router.get("/:fileId/open", protect, openFileInEditor);
-router.get("/:fileId/meta", protect, getFileMeta); // Changed from roomId to fileId
-router.delete("/:fileId/delete", protect, deleteFile);
-router.patch("/:fileId/restore", protect, restoreFile);
+// ========================================
+// DYNAMIC ROUTES (must come LAST)
+// ========================================
+
+// Changed parameter name to :id to be more flexible (works with both fileId and roomId)
+router.get("/:id/open", protect, openFileInEditor);
+router.get("/:id/meta", protect, getFileMeta);
+router.delete("/:id/delete", protect, deleteFile);
+router.patch("/:id/restore", protect, restoreFile);
 
 export default router;
