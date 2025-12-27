@@ -79,22 +79,32 @@ const Editor = forwardRef(({ socketRef, roomId, onCodeChange, fileId }, ref) => 
         
         setCurrentFile(data);
         
+        console.log('Editor: File loaded', {
+          fileId: data._id,
+          filename: data.filename,
+          language: data.language,
+          codeLength: data.code?.length || 0
+        });
+        
         // Set code in editor if it exists and editor is ready
         if (editorRef.current && data.code !== undefined) {
           const currentCode = editorRef.current.getValue();
           
-          // Only update if code is different to avoid unnecessary updates
-          if (currentCode !== data.code) {
-            editorRef.current.setValue(data.code || '');
-            onCodeChange(data.code || '');
-          }
+          console.log('Setting code in editor:', {
+            hasCode: !!data.code,
+            codeLength: data.code?.length || 0,
+            currentCodeLength: currentCode?.length || 0
+          });
+          
+          // Always set the code from the server
+          editorRef.current.setValue(data.code || '');
+          onCodeChange(data.code || '');
+          
+          console.log('Code set in editor successfully');
+        } else if (data.code !== undefined && !editorRef.current) {
+          console.log('Editor not ready yet, code will be set after initialization');
         }
         
-        console.log('Editor: File loaded', {
-          fileId: data._id,
-          filename: data.filename,
-          language: data.language
-        });
       } catch (error) {
         console.error('Editor: Failed to load file:', error);
       }
@@ -106,21 +116,17 @@ const Editor = forwardRef(({ socketRef, roomId, onCodeChange, fileId }, ref) => 
     } else if (fileId) {
       console.log('Editor: Waiting for initialization before loading file');
     }
-  }, [fileId]);
+  }, [fileId, isInitialized.current]);
 
   // Initialize CodeMirror
   useEffect(() => {
     if (isInitialized.current) return;
     
     const init = async () => {
-      const mode = currentFile?.language 
-        ? LANGUAGE_MODES[currentFile.language] || "javascript"
-        : "javascript";
-
       const editor = CodeMirror.fromTextArea(
         document.getElementById("realtimeEditor"),
         {
-          mode: { name: mode, json: true },
+          mode: "text/x-c++src", // Default mode
           theme: "dracula",
           autoCloseTags: true,
           autoCloseBrackets: true,
@@ -133,11 +139,6 @@ const Editor = forwardRef(({ socketRef, roomId, onCodeChange, fileId }, ref) => 
 
       editorRef.current = editor;
       editor.setSize(null, "100%");
-
-      // Set initial code if available
-      if (currentFile?.code) {
-        editor.setValue(currentFile.code);
-      }
 
       editor.on("change", (instance, changes) => {
         const { origin } = changes;
@@ -164,6 +165,40 @@ const Editor = forwardRef(({ socketRef, roomId, onCodeChange, fileId }, ref) => 
       });
 
       isInitialized.current = true;
+      console.log('Editor: Initialized');
+      
+      // Now load the file content if fileId exists
+      if (fileId) {
+        try {
+          const token = localStorage.getItem('token');
+          const { data } = await axios.get(`${API_URL}/files/${fileId}/open`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          setCurrentFile(data);
+          
+          console.log('Editor: Loading initial code', {
+            hasCode: !!data.code,
+            codeLength: data.code?.length || 0
+          });
+          
+          // Set the code
+          if (data.code) {
+            editor.setValue(data.code);
+            onCodeChange(data.code);
+          }
+          
+          // Set the language mode
+          if (data.language) {
+            const mode = LANGUAGE_MODES[data.language] || "javascript";
+            editor.setOption("mode", mode);
+          }
+          
+          console.log('Editor: Initial code loaded');
+        } catch (error) {
+          console.error('Editor: Failed to load initial file:', error);
+        }
+      }
     };
 
     init();
@@ -295,19 +330,18 @@ const Editor = forwardRef(({ socketRef, roomId, onCodeChange, fileId }, ref) => 
             )}
             <button
               onClick={handleSave}
-              className="btn btn-sm "
+              className="btn btn-sm"
               disabled={saving}
               style={{
-                background: '#ffffff',
-                border: '2px solid white',
-                color: 'black',
+                background: 'rgba(102, 126, 234, 0.2)',
+                border: '1px solid rgba(102, 126, 234, 0.3)',
+                color: '#667eea',
                 borderRadius: '6px',
                 padding: '4px 12px',
-                fontSize: '12px',
-                fontWeight:"600"
+                fontSize: '12px'
               }}
             >
-               Save (Ctrl+S)
+              💾 Save (Ctrl+S)
             </button>
           </div>
         </div>

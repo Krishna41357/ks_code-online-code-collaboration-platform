@@ -713,13 +713,14 @@ useEffect(() => {
               transition: 'padding-bottom 0.3s ease-in-out'
             }}
           >
-            <Editor
+           <Editor
   ref={editorComponentRef}  // ADD THIS LINE
   socketRef={socketRef}
   roomId={roomId}
   fileId={fileId}
   onCodeChange={(code) => {
     codeRef.current = code;
+    console.log('Code updated in parent, length:', code?.length || 0);
   }}
 />
           </div>
