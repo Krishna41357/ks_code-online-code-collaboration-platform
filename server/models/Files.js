@@ -45,7 +45,7 @@ const FileStorageSchema = new mongoose.Schema(
             default:false
     },
     isPublic:{
-        type:boolean,
+        type:Boolean,
         default:false
     },
     version: {
