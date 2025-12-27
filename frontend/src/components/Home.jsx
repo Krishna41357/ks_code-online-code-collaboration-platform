@@ -9,13 +9,22 @@ import {
   X,
   Code2,
   Users,
-  Sparkles
+  Sparkles,
+  File,
+  Folder,
+  Clock,
+  Trash2,
+  RefreshCw,
+  Plus,
+  Search
 } from "lucide-react";
 import { v4 as uuid } from "uuid";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import ExtendedHomepage from "./ExtendedHomepage.jsx";
+import axios from "axios";
+import CreateFileModal from './CreateFileModal';
 
 function Home() {
   const [roomId, setRoomId] = useState("");
@@ -23,29 +32,30 @@ function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [showFileBrowser, setShowFileBrowser] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const navigate = useNavigate();
   const { logout, user } = useAuth();
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // Handle scroll to show/hide sidebar
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       
-      // Only hide/show on desktop
       if (window.innerWidth >= 992) {
-        // Show sidebar at top or when scrolling up
         if (currentScrollY < 100) {
           setSidebarVisible(true);
         } else if (currentScrollY > lastScrollY && currentScrollY > 200) {
-          // Scrolling down - hide sidebar
           setSidebarVisible(false);
         } else if (currentScrollY < lastScrollY) {
-          // Scrolling up - show sidebar
           setSidebarVisible(true);
         }
       } else {
-        // Always hidden on mobile (use menu button)
         setSidebarVisible(false);
       }
       
@@ -55,6 +65,67 @@ function Home() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
+
+  const fetchFiles = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const endpoint = filterType === 'recent' ? '/files/recent/list' : '/files';
+      const { data } = await axios.get(`${API_URL}${endpoint}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFiles(data);
+    } catch (error) {
+      console.error('Failed to fetch files:', error);
+      toast.error('Failed to load files');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showFileBrowser) {
+      fetchFiles();
+    }
+  }, [filterType, showFileBrowser]);
+
+  const handleDelete = async (fileId, e) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/files/${fileId}/delete`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('File deleted');
+      fetchFiles();
+    } catch (error) {
+      toast.error('Failed to delete file');
+    }
+  };
+
+  const handleRestore = async (fileId, e) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(`${API_URL}/files/${fileId}/restore`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('File restored');
+      fetchFiles();
+    } catch (error) {
+      toast.error('Failed to restore file');
+    }
+  };
+
+  const handleFileSelect = (file) => {
+    navigate(`/editor/${file._id}`, {
+      state: { username: user?.username || username, fileId: file._id }
+    });
+  };
+
+  const handleCreateNew = () => {
+  setShowCreateModal(true);
+};
 
   const generateRoomId = (e) => {
     e.preventDefault();
@@ -70,9 +141,7 @@ function Home() {
     }
 
     navigate(`/editor/${roomId}`, {
-      state: {
-        username,
-      },
+      state: { username }
     });
     toast.success("room is created");
   };
@@ -92,10 +161,29 @@ function Home() {
     navigate("/about");
   };
 
+  const getLanguageIcon = (language) => {
+    const icons = {
+      javascript: '🟨', js: '🟨',
+      python: '🐍', py: '🐍',
+      cpp: '⚙️',
+      c: '🔵',
+      java: '☕',
+      go: '🐹',
+      rust: '🦀', rs: '🦀',
+      typescript: '🔷', ts: '🔷'
+    };
+    return icons[language] || '📄';
+  };
+
+  const filteredFiles = files.filter(file => {
+    const matchesSearch = file.filename.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filterType === 'deleted' ? file.isDeleted : !file.isDeleted;
+    return matchesSearch && matchesFilter;
+  });
+
   return (
     <div className="position-relative" style={{ background: 'transparent', overflowX: 'hidden' }}>
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
+      {(sidebarOpen || showFileBrowser) && (
         <div 
           className="position-fixed top-0 start-0 w-100 h-100 d-lg-none"
           style={{ 
@@ -103,11 +191,14 @@ function Home() {
             zIndex: 1040,
             backdropFilter: 'blur(4px)'
           }}
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => {
+            setSidebarOpen(false);
+            setShowFileBrowser(false);
+          }}
         />
       )}
 
-      {/* Sidebar - Auto-hide on scroll */}
+      {/* Sidebar */}
       <div 
         className={`position-fixed d-flex flex-column text-light ${sidebarOpen ? 'd-flex' : 'd-none d-lg-flex'}`}
         style={{ 
@@ -125,7 +216,6 @@ function Home() {
         }}
       >
         <div className="d-flex flex-column h-100 p-4">
-          {/* Close button for mobile */}
           <button
             onClick={() => setSidebarOpen(false)}
             className="btn btn-link text-white position-absolute top-0 end-0 d-lg-none p-3"
@@ -134,7 +224,6 @@ function Home() {
             <X size={24} />
           </button>
 
-          {/* Logo/Brand */}
           <div className="mb-4">
             <h1 className="text-white fw-bold fs-3" style={{ letterSpacing: '0.1em' }}>
               KS CODE
@@ -143,7 +232,6 @@ function Home() {
 
           <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '0 0 24px 0' }} />
 
-          {/* User Info */}
           {user && (
             <div className="mb-4 text-center">
               <div 
@@ -165,7 +253,6 @@ function Home() {
             </div>
           )}
 
-          {/* Navigation Menu */}
           <nav className="flex-grow-1">
             <div className="d-flex flex-column gap-2">
               <button
@@ -182,17 +269,28 @@ function Home() {
                   transition: 'all 0.2s',
                   fontWeight: '500'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-                }}
               >
                 <HomeIcon size={20} />
                 <span>Home</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowFileBrowser(true);
+                  setSidebarOpen(false);
+                }}
+                className="btn text-start d-flex align-items-center gap-3 text-white"
+                style={{ 
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '12px',
+                  padding: '14px 16px',
+                  transition: 'all 0.2s',
+                  fontWeight: '500'
+                }}
+              >
+                <Folder size={20} />
+                <span>My Files</span>
               </button>
               
               <button
@@ -208,14 +306,6 @@ function Home() {
                   padding: '14px 16px',
                   transition: 'all 0.2s',
                   fontWeight: '500'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
                 }}
               >
                 <Info size={20} />
@@ -236,14 +326,6 @@ function Home() {
                   transition: 'all 0.2s',
                   fontWeight: '500'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-                }}
               >
                 <DoorOpen size={20} />
                 <span>My Rooms</span>
@@ -263,14 +345,6 @@ function Home() {
                   transition: 'all 0.2s',
                   fontWeight: '500'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-                }}
               >
                 <Settings size={20} />
                 <span>Settings</span>
@@ -278,7 +352,6 @@ function Home() {
             </div>
           </nav>
 
-          {/* Logout Button */}
           <div className="mt-auto pt-4">
             <hr style={{ borderColor: 'rgba(255,255,255,0.1)', margin: '0 0 16px 0' }} />
             <button
@@ -291,14 +364,6 @@ function Home() {
                 padding: '14px',
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(220, 53, 69, 0.2)';
-                e.currentTarget.style.borderColor = 'rgba(220, 53, 69, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(220, 53, 69, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(220, 53, 69, 0.3)';
-              }}
             >
               <LogOut size={20} />
               <span>Logout</span>
@@ -307,9 +372,190 @@ function Home() {
         </div>
       </div>
 
-      {/* Main Content Area - No fixed margin, fully responsive */}
+      {/* File Browser Modal */}
+      {showFileBrowser && (
+        <div
+          className="position-fixed d-flex flex-column"
+          style={{
+            top: 0,
+            right: 0,
+            width: window.innerWidth < 768 ? '100%' : '500px',
+            height: '100vh',
+            zIndex: 1060,
+            background: '#0a0a0a',
+            borderLeft: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '-4px 0 24px rgba(0,0,0,0.5)'
+          }}
+        >
+          {/* Header */}
+          <div className="p-4 border-bottom" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h4 className="text-white fw-bold m-0 d-flex align-items-center gap-2">
+                <Folder size={24} />
+                My Files
+              </h4>
+              <div className="d-flex gap-2">
+                <button
+                  onClick={handleCreateNew}
+                  className="btn btn-sm d-flex align-items-center gap-2"
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px 16px',
+                    color: 'white',
+                    fontWeight: '500'
+                  }}
+                >
+                  <Plus size={16} />
+                  New
+                </button>
+                <button
+                  onClick={() => setShowFileBrowser(false)}
+                  className="btn btn-sm"
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    color: 'white',
+                    borderRadius: '8px',
+                    padding: '8px 12px'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="position-relative mb-3">
+              <Search size={18} className="position-absolute text-white-50" style={{ left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Search files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="form-control ps-5"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  padding: '10px 12px'
+                }}
+              />
+            </div>
+
+            <div className="d-flex gap-2">
+              {['all', 'recent', 'deleted'].map(type => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className="btn btn-sm"
+                  style={{
+                    background: filterType === type ? 'rgba(102, 126, 234, 0.2)' : 'rgba(255,255,255,0.05)',
+                    border: filterType === type ? '1px solid rgba(102, 126, 234, 0.5)' : '1px solid rgba(255,255,255,0.15)',
+                    color: filterType === type ? '#667eea' : '#fff',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    textTransform: 'capitalize'
+                  }}
+                >
+                  {type === 'recent' && <Clock size={14} className="me-1" />}
+                  {type === 'deleted' && <Trash2 size={14} className="me-1" />}
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* File List */}
+          <div className="flex-grow-1 overflow-auto p-3">
+            {loading ? (
+              <div className="text-center text-white-50 py-5">
+                <RefreshCw size={32} className="spin mb-2" />
+                <p>Loading files...</p>
+              </div>
+            ) : filteredFiles.length === 0 ? (
+              <div className="text-center text-white-50 py-5">
+                <File size={48} className="mb-3 opacity-50" />
+                <p className="mb-1">No files found</p>
+                <p className="small">Create a new file to get started</p>
+              </div>
+            ) : (
+              <div className="d-flex flex-column gap-2">
+                {filteredFiles.map(file => (
+                  <div
+                    key={file._id}
+                    onClick={() => !file.isDeleted && handleFileSelect(file)}
+                    className="p-3 rounded"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      cursor: file.isDeleted ? 'default' : 'pointer',
+                      transition: 'all 0.2s',
+                      opacity: file.isDeleted ? 0.6 : 1
+                    }}
+                  >
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="flex-grow-1">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                          <span style={{ fontSize: '20px' }}>
+                            {getLanguageIcon(file.language)}
+                          </span>
+                          <span className="text-white fw-semibold">{file.filename}</span>
+                          {file.isDeleted && (
+                            <span className="badge bg-danger small">Deleted</span>
+                          )}
+                        </div>
+                        <div className="d-flex align-items-center gap-3 text-white-50 small">
+                          <span>v{file.version}</span>
+                          <span>•</span>
+                          <span>{new Date(file.updatedAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="d-flex gap-2">
+                        {file.isDeleted ? (
+                          <button
+                            onClick={(e) => handleRestore(file._id, e)}
+                            className="btn btn-sm"
+                            style={{
+                              background: 'rgba(40, 167, 69, 0.2)',
+                              border: '1px solid rgba(40, 167, 69, 0.3)',
+                              color: '#28a745',
+                              padding: '4px 8px',
+                              borderRadius: '6px'
+                            }}
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => handleDelete(file._id, e)}
+                            className="btn btn-sm"
+                            style={{
+                              background: 'rgba(220, 53, 69, 0.2)',
+                              border: '1px solid rgba(220, 53, 69, 0.3)',
+                              color: '#dc3545',
+                              padding: '4px 8px',
+                              borderRadius: '6px'
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
       <div className="main-content-wrapper">
-        {/* Mobile Menu Toggle - Always visible on mobile */}
         <button
           onClick={() => setSidebarOpen(true)}
           className="btn d-lg-none position-fixed"
@@ -329,7 +575,6 @@ function Home() {
           <Menu size={24} />
         </button>
 
-        {/* Show/Hide Sidebar Button on Desktop (when scrolled) */}
         {!sidebarVisible && (
           <button
             onClick={() => setSidebarVisible(true)}
@@ -347,18 +592,11 @@ function Home() {
               boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
               transition: 'all 0.3s'
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-            }}
           >
             <Menu size={24} />
           </button>
         )}
 
-        {/* Hero Section - Center Content */}
         <section style={{ minHeight: '100vh', position: 'relative' }}>
           <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '100vh', padding: '20px' }}>
             <div className="w-100" style={{ maxWidth: '500px' }}>
@@ -449,14 +687,6 @@ function Home() {
                         boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
                         transition: 'all 0.3s'
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
-                      }}
                     >
                       <Users size={18} />
                       Join Room
@@ -478,14 +708,6 @@ function Home() {
                           fontWeight: '500',
                           fontSize: '13px'
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-                        }}
                       >
                         <Sparkles size={16} />
                         Create New Room
@@ -498,7 +720,6 @@ function Home() {
           </div>
         </section>
 
-        {/* Extended Homepage Section */}
         <ExtendedHomepage />
       </div>
 
@@ -515,53 +736,23 @@ function Home() {
           box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15) !important;
         }
 
-        /* Sidebar scrollbar */
-        .position-fixed.d-flex.flex-column::-webkit-scrollbar {
-          width: 6px;
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
-
-        .position-fixed.d-flex.flex-column::-webkit-scrollbar-track {
-          background: rgba(255,255,255,0.05);
-        }
-
-        .position-fixed.d-flex.flex-column::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.2);
-          border-radius: 10px;
-        }
-
-        .position-fixed.d-flex.flex-column::-webkit-scrollbar-thumb:hover {
-          background: rgba(255,255,255,0.3);
-        }
-
-        /* Main content wrapper - no margin needed, sidebar slides away */
-        .main-content-wrapper {
-          width: 100%;
-          transition: none;
-        }
-
-        /* Smooth scroll */
-        html {
-          scroll-behavior: smooth;
-        }
-
-        /* Custom scrollbar */
-        body::-webkit-scrollbar {
-          width: 8px;
-        }
-
-        body::-webkit-scrollbar-track {
-          background: rgba(0, 0, 0, 0.3);
-        }
-
-        body::-webkit-scrollbar-thumb {
-          background: rgba(102, 126, 234, 0.5);
-          border-radius: 10px;
-        }
-
-        body::-webkit-scrollbar-thumb:hover {
-          background: rgba(102, 126, 234, 0.7);
+        .spin {
+          animation: spin 1s linear infinite;
         }
       `}</style>
+      {showCreateModal && (
+  <CreateFileModal 
+    onClose={() => setShowCreateModal(false)}
+    onFileCreated={() => {
+      setShowCreateModal(false);
+      fetchFiles();
+    }}
+  />
+)}
     </div>
   );
 }

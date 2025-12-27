@@ -2,34 +2,16 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Client from "./Client";
 import Editor from "./Editor";
 import { initSocket } from "../Socket";
-import {
-  useNavigate,
-  useLocation,
-  Navigate,
-  useParams,
-} from "react-router-dom";
+import { useNavigate, useLocation, Navigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import Draggable from "react-draggable";
 import axios from "axios";
 import { 
-  Play, 
-  Terminal, 
-  ChevronUp, 
-  ChevronDown, 
-  Copy, 
-  LogOut, 
-  Users, 
-  Video, 
-  VideoOff, 
-  X, 
-  Menu,
-  Trash2,
-  Code2,
-  Sparkle
+  Play, Terminal, ChevronUp, ChevronDown, Copy, LogOut, Users, 
+  Video, VideoOff, X, Menu, Trash2, Code2, Sparkle, Save,
+  Edit3, FileText, Languages, Folder, ChevronRight, RefreshCw
 } from "lucide-react";
 import { Resizable } from "re-resizable";
-
-
 
 const LANGUAGES = [
   { value: "py", label: "Python", icon: "🐍" },
@@ -37,24 +19,27 @@ const LANGUAGES = [
   { value: "cpp", label: "C++", icon: "⚙️" },
   { value: "js", label: "JavaScript", icon: "🟨" },
   { value: "c", label: "C", icon: "🔵" },
-  { value: "ruby", label: "Ruby", icon: "💎" },
-  { value: "php", label: "PHP", icon: "🐘" }
+  { value: "go", label: "Go", icon: "🐹" },
+  { value: "rs", label: "Rust", icon: "🦀" }
 ];
 
 function EditorPage() {
   const [clients, setClients] = useState([]);
   const [videoCall, setVideoCall] = useState(false);
-  const [showModal, setShowModal] = useState(false);
   const [myStream, setMyStream] = useState(null);
   const [output, setOutput] = useState("");
   const [isCompileWindowOpen, setIsCompileWindowOpen] = useState(false);
   const [isCompiling, setIsCompiling] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState("cpp");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [AiOutput, setAiOutput] = useState("");
-  const[errorOutput,setErrorOutput]=useState(0);
-  const [correctedCode , setCorrectedCode] = useState("")
-  const API_URL = import.meta.env.VITE_API_URL
+  const [errorOutput, setErrorOutput] = useState(0);
+  const [correctedCode, setCorrectedCode] = useState("");
+  const [currentFile, setCurrentFile] = useState(null);
+  const [showFileMenu, setShowFileMenu] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const codeRef = useRef(null);
   const videoRef = useRef(null);
@@ -64,6 +49,29 @@ function EditorPage() {
   const navigate = useNavigate();
   const { roomId } = useParams();
 
+  const fileId = Location.state?.fileId || roomId;
+
+  // Load file metadata
+  useEffect(() => {
+    const loadFileMeta = async () => {
+      if (!fileId) return;
+      
+      try {
+        const token = localStorage.getItem('token');
+        const { data } = await axios.get(`${API_URL}/files/${fileId}/meta`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setCurrentFile(data);
+        setSelectedLanguage(data.language);
+      } catch (error) {
+        console.error('Failed to load file metadata:', error);
+      }
+    };
+
+    loadFileMeta();
+  }, [fileId]);
+
+  // Video call functions
   const startVideoCall = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -71,7 +79,6 @@ function EditorPage() {
         audio: true,
       });
       setVideoCall(true);
-      setShowModal(true);
       setMyStream(stream);
       toast.success("Video call started");
     } catch (err) {
@@ -95,10 +102,10 @@ function EditorPage() {
     }
   }, [myStream]);
 
+  // Socket initialization
   useEffect(() => {
     const init = async () => {
       socketRef.current = await initSocket();
-      
 
       const handleErrors = (err) => {
         console.log("Error", err);
@@ -139,7 +146,7 @@ function EditorPage() {
       if (myStream) {
         myStream.getTracks().forEach(track => track.stop());
       }
-      socketRef.current && socketRef.current.disconnect();
+      socketRef.current?.disconnect();
       socketRef.current?.off("joined");
       socketRef.current?.off("disconnected");
     };
@@ -149,23 +156,79 @@ function EditorPage() {
     return <Navigate to="/" />;
   }
 
-  const copyRoomId = async () => {
+  // File operations
+  const handleSaveFile = async () => {
+    if (!fileId || !codeRef.current) {
+      toast.error('No file to save');
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(roomId);
-      toast.success(`Room ID copied`);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        `${API_URL}/files/save`,
+        { fileId, code: codeRef.current },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('File saved successfully');
     } catch (error) {
-      console.log(error);
-      toast.error("Unable to copy the room ID");
+      toast.error('Failed to save file');
     }
   };
 
-  const leaveRoom = async () => {
-    if (myStream) {
-      myStream.getTracks().forEach(track => track.stop());
+  const handleRenameFile = async () => {
+    if (!newFileName.trim()) {
+      toast.error('Please enter a filename');
+      return;
     }
-    navigate("/Home");
+
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.patch(
+        `${API_URL}/files/rename`,
+        { fileId, newName: newFileName },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setCurrentFile(data);
+      setRenaming(false);
+      toast.success('File renamed');
+    } catch (error) {
+      toast.error('Failed to rename file');
+    }
   };
 
+  const handleChangeLanguage = async (newLanguage) => {
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.patch(
+        `${API_URL}/files/language`,
+        { fileId, language: newLanguage },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setCurrentFile(data);
+      setSelectedLanguage(newLanguage);
+      toast.success('Language changed');
+    } catch (error) {
+      toast.error('Failed to change language');
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!confirm('Are you sure you want to delete this file?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/files/${fileId}/delete`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('File deleted');
+      navigate('/home');
+    } catch (error) {
+      toast.error('Failed to delete file');
+    }
+  };
+
+  // Code execution
   const runCode = async () => {
     if (!codeRef.current || codeRef.current.trim() === "") {
       toast.error("Please write some code first");
@@ -174,60 +237,78 @@ function EditorPage() {
 
     setIsCompiling(true);
     setOutput("Compiling...");
+    
     const payload = {
       language: selectedLanguage,
       code: codeRef.current,
     };
+
     try {
       const { data } = await axios.post(
         "https://ks-compiler.onrender.com/run",
         payload
       );
       setOutput(data.output);
-      setIsCompiling(false);
+      setErrorOutput(0);
       toast.success("Code compiled successfully");
     } catch (err) {
-      console.log(err);
       const errmsg =
         err?.response?.data?.err?.error ||
         err?.response?.data?.error ||
         "Something went wrong";
       setOutput(errmsg);
       setErrorOutput(1);
-      setIsCompiling(false);
       toast.error("Compilation failed");
+    } finally {
+      setIsCompiling(false);
     }
   };
+
   const errorAnalysis = async () => {
-  if (!errorOutput) {
-    toast.error("No error to analyze");
-    return;
-  }
+    if (!errorOutput) {
+      toast.error("No error to analyze");
+      return;
+    }
 
-  setIsCompiling(true);
-  setCorrectedCode(""); // reset previous fix
+    setIsCompiling(true);
+    setCorrectedCode("");
 
-  try {
-    const { data } = await axios.post(
-      `${API_URL}/errorAnalyze/analyze-error`,
-      {
-        error: output,
-        code: codeRef.current,
-        language: selectedLanguage,
-      }
-    );
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/errorAnalyze/analyze-error`,
+        {
+          error: output,
+          code: codeRef.current,
+          language: selectedLanguage,
+        }
+      );
 
-    setOutput(data.explanation);          // Explanation UI
-    setCorrectedCode(data.correctedCode); // Apply Fix button
-    setErrorOutput(0);
-  } catch (err) {
-    toast.error("AI analysis failed. Try again later.");
-    setOutput("Unable to analyze the error at the moment.");
-  } finally {
-    setIsCompiling(false);
-  }
-};
+      setOutput(data.explanation);
+      setCorrectedCode(data.correctedCode);
+      setErrorOutput(0);
+    } catch (err) {
+      toast.error("AI analysis failed. Try again later.");
+      setOutput("Unable to analyze the error at the moment.");
+    } finally {
+      setIsCompiling(false);
+    }
+  };
 
+  const copyRoomId = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId);
+      toast.success(`Room ID copied`);
+    } catch (error) {
+      toast.error("Unable to copy the room ID");
+    }
+  };
+
+  const leaveRoom = () => {
+    if (myStream) {
+      myStream.getTracks().forEach(track => track.stop());
+    }
+    navigate("/home");
+  };
 
   const toggleCompileWindow = () => {
     setIsCompileWindowOpen(!isCompileWindowOpen);
@@ -235,7 +316,7 @@ function EditorPage() {
 
   return (
     <div className="container-fluid vh-100 d-flex flex-column p-0" style={{ overflow: 'hidden', background: '#0a0a0a' }}>
-      {/* Draggable Video Preview */}
+      {/* Draggable Video */}
       {myStream && (
         <Draggable>
           <div
@@ -329,9 +410,110 @@ function EditorPage() {
           }}
         >
           <div className="p-4">
+            {/* File Info */}
+            {currentFile && (
+              <div className="mb-4">
+                <div className="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <div className="d-flex align-items-center gap-2 mb-2">
+                      <FileText size={20} className="text-white-50" />
+                      {renaming ? (
+                        <input
+                          type="text"
+                          value={newFileName}
+                          onChange={(e) => setNewFileName(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && handleRenameFile()}
+                          onBlur={() => setRenaming(false)}
+                          autoFocus
+                          className="form-control form-control-sm"
+                          style={{
+                            background: 'rgba(255,255,255,0.1)',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            color: 'white',
+                            fontSize: '14px'
+                          }}
+                        />
+                      ) : (
+                        <span className="text-white fw-semibold">{currentFile.filename}</span>
+                      )}
+                    </div>
+                    <div className="text-white-50 small">
+                      <span>Version {currentFile.version}</span>
+                      <span className="mx-2">•</span>
+                      <span>{LANGUAGES.find(l => l.value === currentFile.language)?.label}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowFileMenu(!showFileMenu)}
+                    className="btn btn-sm"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      color: 'white',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <ChevronRight size={16} style={{ transform: showFileMenu ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+                  </button>
+                </div>
 
+                {/* File Menu */}
+                {showFileMenu && (
+                  <div className="d-flex flex-column gap-2 mb-3">
+                    <button
+                      onClick={handleSaveFile}
+                      className="btn btn-sm text-start d-flex align-items-center gap-2"
+                      style={{
+                        background: 'rgba(102, 126, 234, 0.1)',
+                        border: '1px solid rgba(102, 126, 234, 0.3)',
+                        color: '#667eea',
+                        borderRadius: '8px',
+                        padding: '8px 12px'
+                      }}
+                    >
+                      <Save size={16} />
+                      Save File (Ctrl+S)
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNewFileName(currentFile.filename.split('.')[0]);
+                        setRenaming(true);
+                        setShowFileMenu(false);
+                      }}
+                      className="btn btn-sm text-start d-flex align-items-center gap-2"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '8px 12px'
+                      }}
+                    >
+                      <Edit3 size={16} />
+                      Rename File
+                    </button>
+                    <button
+                      onClick={handleDeleteFile}
+                      className="btn btn-sm text-start d-flex align-items-center gap-2"
+                      style={{
+                        background: 'rgba(220, 53, 69, 0.1)',
+                        border: '1px solid rgba(220, 53, 69, 0.3)',
+                        color: '#dc3545',
+                        borderRadius: '8px',
+                        padding: '8px 12px'
+                      }}
+                    >
+                      <Trash2 size={16} />
+                      Delete File
+                    </button>
+                  </div>
+                )}
+                
+                <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
+              </div>
+            )}
 
-            {/* Members Section */}
+            {/* Members */}
             <div className="flex-grow-1 mb-4">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <span className="fw-semibold text-white d-flex align-items-center gap-2">
@@ -343,54 +525,53 @@ function EditorPage() {
                 </span>
               </div>
               
-              <div className="d-flex flex-column gap-2" style={{ maxHeight: '320px', overflowY: 'auto' }}>
+              <div className="d-flex flex-column gap-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                 {clients.map((client) => (
                   <Client key={client.socketId} username={client.username} />
                 ))}
               </div>
 
-              {/* Video Call Button */}
               {roomId && (
                 <button
-                  className={`btn w-100 mt-4 d-flex align-items-center justify-content-center gap-2`}
+                  className="btn w-100 mt-3 d-flex align-items-center justify-content-center gap-2"
                   onClick={videoCall ? stopVideoCall : startVideoCall}
                   style={{
                     background: videoCall ? 'rgba(220, 53, 69, 0.15)' : 'rgba(255,255,255,0.1)',
                     border: videoCall ? '1px solid rgba(220, 53, 69, 0.3)' : '1px solid rgba(255,255,255,0.2)',
                     color: videoCall ? '#dc3545' : 'white',
                     borderRadius: '12px',
-                    padding: '12px',
-                    fontWeight: '500'
+                    padding: '10px',
+                    fontWeight: '500',
+                    fontSize: '14px'
                   }}
                 >
-                  {videoCall ? <VideoOff size={18} /> : <Video size={18} />}
-                  {videoCall ? 'End Video Call' : 'Start Video Call'}
+                  {videoCall ? <VideoOff size={16} /> : <Video size={16} />}
+                  {videoCall ? 'End Video' : 'Start Video'}
                 </button>
               )}
             </div>
 
-            {/* Action Buttons */}
+            {/* Actions */}
             <div className="mt-auto pt-4">
               <hr style={{ borderColor: 'rgba(255,255,255,0.1)' }} />
               
-              {/* Copy Room ID Button */}
               <button 
-                className="btn w-100 d-flex align-items-center justify-content-center gap-2 mb-3"
+                className="btn w-100 d-flex align-items-center justify-content-center gap-2 mb-2"
                 onClick={copyRoomId}
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.2)',
                   color: 'white',
                   borderRadius: '12px',
-                  padding: '12px',
-                  fontWeight: '500'
+                  padding: '10px',
+                  fontWeight: '500',
+                  fontSize: '14px'
                 }}
               >
-                <Copy size={18} />
+                <Copy size={16} />
                 Copy Room ID
               </button>
 
-              {/* Leave Room Button */}
               <button 
                 className="btn w-100 d-flex align-items-center justify-content-center gap-2"
                 onClick={leaveRoom}
@@ -399,33 +580,31 @@ function EditorPage() {
                   border: '1px solid rgba(220, 53, 69, 0.3)',
                   color: '#dc3545',
                   borderRadius: '12px',
-                  padding: '12px',
-                  fontWeight: '500'
+                  padding: '10px',
+                  fontWeight: '500',
+                  fontSize: '14px'
                 }}
               >
-                <LogOut size={18} />
+                <LogOut size={16} />
                 Leave Room
               </button>
             </div>
           </div>
         </div>
 
-        {/* Overlay for mobile sidebar */}
+        {/* Overlay */}
         {isSidebarOpen && (
           <div
             className="d-md-none position-fixed top-0 start-0 w-100 h-100"
             style={{ background: 'rgba(0,0,0,0.7)', zIndex: 1040, backdropFilter: 'blur(4px)' }}
             onClick={() => setIsSidebarOpen(false)}
-          ></div>
+          />
         )}
 
         {/* Main Editor */}
         <div 
           className="col-md-9 col-lg-10 text-light d-flex flex-column" 
-          style={{ 
-            height: '100vh',
-            position: 'relative'
-          }}
+          style={{ height: '100vh', position: 'relative' }}
         >
           {/* Top Bar */}
           <div className="p-3 d-flex justify-content-between align-items-center" style={{ background: '#0f0f0f', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -435,11 +614,10 @@ function EditorPage() {
             </div>
             
             <div className="d-flex align-items-center gap-2">
-              {/* Language Selector */}
               <select
                 className="form-select form-select-sm"
                 value={selectedLanguage}
-                onChange={(e) => setSelectedLanguage(e.target.value)}
+                onChange={(e) => handleChangeLanguage(e.target.value)}
                 style={{ 
                   background: 'rgba(255,255,255,0.1)',
                   color: "white",
@@ -458,7 +636,6 @@ function EditorPage() {
                 ))}
               </select>
 
-              {/* Run Code Button (Desktop) */}
               <button
                 className="btn btn-sm d-none d-md-inline-flex align-items-center gap-2"
                 onClick={runCode}
@@ -473,12 +650,12 @@ function EditorPage() {
                 }}
               >
                 <Play size={16} />
-                {isCompiling ? 'Running...' : 'Run Code'}
+                {isCompiling ? 'Running...' : 'Run'}
               </button>
             </div>
           </div>
 
-          {/* Code Editor - Takes remaining space */}
+          {/* Editor */}
           <div 
             className="flex-grow-1" 
             style={{ 
@@ -490,160 +667,147 @@ function EditorPage() {
             <Editor
               socketRef={socketRef}
               roomId={roomId}
+              fileId={fileId}
               onCodeChange={(code) => {
                 codeRef.current = code;
               }}
             />
           </div>
 
-          {/* Compiler Output Section - Fixed at bottom */}
-         
-
-{isCompileWindowOpen && (
-  <Resizable
-    defaultSize={{
-      width: '100%',
-      height: '45vh',
-    }}
-    minHeight="20vh"
-    maxHeight="80vh"
-    enable={{
-      top: true,
-      right: false,
-      left: false,
-      bottom: false,
-    }}
-    handleStyles={{
-      top: {
-        height: '6px',
-        cursor: 'row-resize',
-        background: 'rgba(255,255,255,0.15)',
-      },
-    }}
-    style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      zIndex: 1060,
-      background: '#0a0a0a',
-      borderTop: '1px solid rgba(255,255,255,0.1)',
-      boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
-    }}
-  >
-    <div className="h-100 d-flex flex-column p-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3 pb-3"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-        <h6 className="m-0 fw-semibold d-flex align-items-center gap-2">
-          <Terminal size={20} />
-          Output
-          <span className="badge rounded-pill"
-            style={{ background: 'rgba(255,255,255,0.15)', fontSize: '0.7rem', padding: '4px 12px' }}>
-            {LANGUAGES.find(l => l.value === selectedLanguage)?.label}
-          </span>
-        </h6>
-        <div className="d-flex gap-2">
-          {correctedCode && (
-            <button className="btn btn-sm d-flex align-items-center gap-2"
-              disabled={isCompiling}
-              onClick={() => {
-                codeRef.current = correctedCode;
-                toast.success('Fix applied to editor');
+          {/* Compiler Output */}
+          {isCompileWindowOpen && (
+            <Resizable
+              defaultSize={{ width: '100%', height: '45vh' }}
+              minHeight="20vh"
+              maxHeight="80vh"
+              enable={{ top: true, right: false, left: false, bottom: false }}
+              handleStyles={{
+                top: {
+                  height: '6px',
+                  cursor: 'row-resize',
+                  background: 'rgba(255,255,255,0.15)',
+                },
               }}
               style={{
-                background: 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '6px 14px',
-                color: 'white',
-                fontWeight: '500',
-              }}>
-              ✨ Apply Fix
-            </button>
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 1060,
+                background: '#0a0a0a',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 -8px 32px rgba(0,0,0,0.6)',
+              }}
+            >
+              <div className="h-100 d-flex flex-column p-4">
+                <div className="d-flex justify-content-between align-items-center mb-3 pb-3"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                  <h6 className="m-0 fw-semibold d-flex align-items-center gap-2">
+                    <Terminal size={20} />
+                    Output
+                    <span className="badge rounded-pill"
+                      style={{ background: 'rgba(255,255,255,0.15)', fontSize: '0.7rem', padding: '4px 12px' }}>
+                      {LANGUAGES.find(l => l.value === selectedLanguage)?.label}
+                    </span>
+                  </h6>
+                  <div className="d-flex gap-2">
+                    {correctedCode && (
+                      <button className="btn btn-sm d-flex align-items-center gap-2"
+                        disabled={isCompiling}
+                        onClick={() => {
+                          codeRef.current = correctedCode;
+                          toast.success('Fix applied to editor');
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '6px 14px',
+                          color: 'white',
+                          fontWeight: '500',
+                        }}>
+                        ✨ Apply Fix
+                      </button>
+                    )}
+                    <button className="btn btn-sm d-flex align-items-center gap-2"
+                      onClick={errorAnalysis}
+                      disabled={isCompiling}
+                      style={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '6px 14px',
+                        color: 'white',
+                        fontWeight: '500',
+                      }}>
+                      <Sparkle size={14} />
+                      {isCompiling ? 'Analyzing...' : 'Analyze'}
+                    </button>
+                    <button className="btn btn-sm d-flex align-items-center gap-2"
+                      onClick={runCode}
+                      disabled={isCompiling}
+                      style={{
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '6px 14px',
+                        color: 'white',
+                        fontWeight: '500',
+                      }}>
+                      <Play size={14} />
+                      Run
+                    </button>
+                    <button className="btn btn-sm"
+                      onClick={() => setOutput('')}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '6px 12px',
+                      }}>
+                      <Trash2 size={14} />
+                    </button>
+                    <button className="btn btn-sm"
+                      onClick={toggleCompileWindow}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'white',
+                        borderRadius: '8px',
+                        padding: '6px 12px',
+                      }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-grow-1 overflow-auto">
+                  <pre className="p-3 rounded mb-0 h-100"
+                    style={{
+                      fontSize: '0.9rem',
+                      fontFamily: 'Consolas, Monaco, monospace',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#e0e0e0',
+                    }}>
+                    {output || '💡 Output will appear here after compilation'}
+                  </pre>
+                </div>
+              </div>
+            </Resizable>
           )}
-          <button className="btn btn-sm d-flex align-items-center gap-2"
-            onClick={errorAnalysis}
-            disabled={isCompiling}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '6px 14px',
-              color: 'white',
-              fontWeight: '500',
-              opacity: isCompiling ? 0.7 : 1,
-            }}>
-            <Sparkle size={14} />
-            {isCompiling ? 'Analyzing...' : 'Understand Error'}
-          </button>
-          <button className="btn btn-sm d-flex align-items-center gap-2"
-            onClick={runCode}
-            disabled={isCompiling}
-            style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '6px 14px',
-              color: 'white',
-              fontWeight: '500',
-            }}>
-            <Play size={14} />
-            {isCompiling ? 'Running...' : 'Run'}
-          </button>
-          <button className="btn btn-sm"
-            onClick={() => setOutput('')}
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'white',
-              borderRadius: '8px',
-              padding: '6px 12px',
-            }}>
-            <Trash2 size={14} />
-          </button>
-          <button className="btn btn-sm"
-            onClick={toggleCompileWindow}
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: 'white',
-              borderRadius: '8px',
-              padding: '6px 12px',
-            }}>
-            <X size={14} />
-          </button>
         </div>
       </div>
 
-      {/* Output Content */}
-      <div className="flex-grow-1 overflow-auto">
-        <pre className="p-3 rounded mb-0 h-100"
-          style={{
-            fontSize: '0.9rem',
-            fontFamily: 'Consolas, Monaco, monospace',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#e0e0e0',
-          }}>
-          {output || '💡 Output will appear here after compilation\n\nPress "Run" or use the Run Code button to execute your code.'}
-        </pre>
-      </div>
-    </div>
-  </Resizable>
-)}
-
-        </div>
-      </div>
-
-      {/* Floating Action Buttons (Mobile) */}
+      {/* FAB Buttons */}
       <div className="d-md-none position-fixed d-flex flex-column gap-3" style={{ bottom: '24px', right: '24px', zIndex: 1030 }}>
         <button
-          className="btn rounded-circle shadow-lg"
           onClick={runCode}
           disabled={isCompiling}
+          className="btn rounded-circle shadow-lg"
           style={{ 
             width: '60px', 
             height: '60px',
@@ -658,8 +822,8 @@ function EditorPage() {
           <Play size={24} fill="white" />
         </button>
         <button
-          className="btn rounded-circle shadow-lg"
           onClick={toggleCompileWindow}
+          className="btn rounded-circle shadow-lg"
           style={{ 
             width: '60px', 
             height: '60px',

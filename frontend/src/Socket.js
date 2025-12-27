@@ -7,6 +7,9 @@ export const initSocket = async () =>{
         reconnectionAttempts : 'Infinity',
         timeout: 10000,
         transports: ['websocket'],
+        auth: {
+      token: localStorage.getItem('token') // Add token for authentication
+    }
     };
     const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://localhost:5000' ;
     return io(BACKEND_URL, options);
