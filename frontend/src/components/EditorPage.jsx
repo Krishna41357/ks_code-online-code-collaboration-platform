@@ -513,7 +513,7 @@ useEffect(() => {
                       onClick={handleSaveFile}
                       className="btn btn-sm text-start d-flex align-items-center gap-2"
                       style={{
-                        background: 'rgba(102, 126, 234, 0.1)',
+                        background: 'white',
                         border: '1px solid rgba(102, 126, 234, 0.3)',
                         color: '#667eea',
                         borderRadius: '8px',
