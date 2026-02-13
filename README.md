@@ -1,5 +1,4 @@
-
-![banner](https://github.com/user-attachments/assets/be9de06b-bdea-424d-b0e6-45b65607f400)<svg width="1200" height="300" xmlns="http://www.w3.org/2000/svg">
+<svg width="1200" height="300" xmlns="http://www.w3.org/2000/svg">
   <!-- Background gradient -->
   <defs>
     <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -7,17 +6,7 @@
       <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
     </linearGradient>
     
-    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
-    </linearGradient>
-    
-    <!-- Code symbols pattern -->
-    <pattern id="codePattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-      <text x="10" y="30" font-family="monospace" font-size="24" fill="#ffffff" opacity="0.1">&lt;/&gt;</text>
-      <text x="50" y="70" font-family="monospace" font-size="20" fill="#ffffff" opacity="0.08">{ }</text>
-      <text x="20" y="90" font-family="monospace" font-size="18" fill="#ffffff" opacity="0.07">[ ]</text>
-    </pattern>
+  
   </defs>
   
   <!-- Background -->
