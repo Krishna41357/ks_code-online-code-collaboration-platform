@@ -6,7 +6,17 @@
       <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
     </linearGradient>
     
-  
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Code symbols pattern -->
+    <pattern id="codePattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+      <text x="10" y="30" font-family="monospace" font-size="24" fill="#ffffff" opacity="0.1">&lt;/&gt;</text>
+      <text x="50" y="70" font-family="monospace" font-size="20" fill="#ffffff" opacity="0.08">{ }</text>
+      <text x="20" y="90" font-family="monospace" font-size="18" fill="#ffffff" opacity="0.07">[ ]</text>
+    </pattern>
   </defs>
   
   <!-- Background -->
@@ -51,7 +61,6 @@
   <circle cx="520" y="245" r="3" fill="#ffffff" opacity="0.7"/>
   <circle cx="730" y="245" r="3" fill="#ffffff" opacity="0.7"/>
 </svg>
-
 
 
 # KS Code - Online Code Collaboration Platform
