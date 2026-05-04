@@ -309,7 +309,7 @@ function AboutUs() {
                   
                   <div className="mt-4 d-flex justify-content-center gap-3">
                     <a
-                      href="https://github.com/krishna-intro"
+                      href="https://github.com/Krishna41357"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-sm d-flex align-items-center gap-2"
@@ -324,7 +324,7 @@ function AboutUs() {
                       <Github size={18} />
                     </a>
                     <a
-                      href="https://linkedin.com/in/krishna-srivastava"
+                      href="linkedin.com/in/krishna-srivastava-a84b65299"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-sm d-flex align-items-center gap-2"
@@ -339,7 +339,7 @@ function AboutUs() {
                       <Linkedin size={18} />
                     </a>
                     <a
-                      href="mailto:krishna@example.com"
+                      href="mailto:krishnasrivastava41357@gmail.com"
                       className="btn btn-sm d-flex align-items-center gap-2"
                       style={{
                         background: 'rgba(255,255,255,0.05)',
